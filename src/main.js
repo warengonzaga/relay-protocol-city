@@ -259,7 +259,7 @@ function selectScenario() {
   const scenario = $("scenario").value;
   let transfers = createDemoTransfers();
   if (scenario === "destination-pending")
-    transfers = createDemoTransfers(2, scenario);
+    transfers = createDemoTransfers(8, scenario);
   else if (["pending", "failed", "blocked"].includes(scenario))
     transfers = transfers.filter((t) => t.demoScenario === scenario);
   else if (scenario === "same-chain")

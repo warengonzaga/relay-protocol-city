@@ -335,12 +335,25 @@ export function createDemoTransfers(count = 36, scenario = "all") {
     ? Math.max(0, Math.min(100, Math.floor(count)))
     : 36;
   if (scenario === "destination-pending") {
-    return createDemoTransfers(Math.min(size, 2)).map((trip) => ({
-      ...trip,
-      stage: "fill",
-      status: "pending",
-      demoScenario: "destination-pending",
-    }));
+    const seeds = createDemoTransfers(2);
+    return Array.from({ length: size }, (_, index) => {
+      // Mix incoming and local examples to demonstrate every Ethereum holding space.
+      const origin = getChain(index < 4 ? 8453 : 1),
+        destination = getChain(1);
+      return {
+        ...seeds[index % seeds.length],
+        id: `demo-checkpoint-${index + 1}`,
+        originChainId: origin.id,
+        destinationChainId: destination.id,
+        originName: origin.name,
+        destinationName: destination.name,
+        originSymbol: origin.symbol,
+        destinationSymbol: destination.symbol,
+        stage: "fill",
+        status: "pending",
+        demoScenario: "destination-pending",
+      };
+    });
   }
   const now = Date.now();
   const amounts = [

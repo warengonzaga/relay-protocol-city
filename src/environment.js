@@ -339,9 +339,12 @@ export function buildEnvironment(scene, models) {
     );
   }
 
+  const curbZ = (address) => address.road.z + address.sidewalkSide * 5.9;
   function driveway(address, garage = true) {
     const entrance = garage ? address.garage : address.door;
-    const end = garage ? address.road : address.sidewalk;
+    const end = garage
+      ? { x: address.road.x, z: curbZ(address) }
+      : address.sidewalk;
     if (!garage && Math.abs(entrance.x - end.x) > 0.01)
       box(
         (entrance.x + end.x) / 2,
@@ -358,7 +361,7 @@ export function buildEnvironment(scene, models) {
       (entrance.z + end.z) / 2,
       garage ? 2.5 : 1.25,
       0.07,
-      Math.abs(entrance.z - end.z) + 0.4,
+      Math.abs(entrance.z - end.z) + (garage ? 0 : 0.4),
       garage ? "#4c505e" : "#878792",
     );
     if (!garage) return;
@@ -414,14 +417,15 @@ export function buildEnvironment(scene, models) {
       );
       if (site.role === "bus-terminal") {
         const apronZ = address.garage.z;
+        const streetEdge = curbZ(address);
         box(address.x, 0.81, apronZ, 12, 0.12, 6.2, "#454555", 0.12);
         box(
           address.x,
           0.84,
-          (apronZ + address.road.z) / 2,
+          (apronZ + streetEdge) / 2,
           4,
           0.08,
-          Math.abs(apronZ - address.road.z),
+          Math.abs(apronZ - streetEdge),
           "#4c505e",
         );
         for (const side of [-1, 1]) {
@@ -528,46 +532,85 @@ export function buildEnvironment(scene, models) {
     const gate = district.gate;
     // The route reaches the border; the whole fixture stands just inside it.
     const gateX = gate.x - gate.outward.x * 0.7;
-    const bay = district.bay;
-    box(bay.x, 0.82, bay.z, 6.5, 0.11, 5.8, "#454555", 0.15);
+    const checkpoint = district.checkpoint;
+    for (const [bays, accessX, width, height, color, padding] of [
+      [checkpoint.vehicle, checkpoint.accessX, 3.2, 0.13, "#454555", 2],
+      [
+        checkpoint.pedestrian,
+        checkpoint.walkAccessX,
+        1.1,
+        0.23,
+        "#727380",
+        0.2,
+      ],
+    ]) {
+      const side = Math.sign(bays[0].z - gate.z);
+      const start = gate.z + side * 5.9;
+      const end = bays.at(-1).z + side * padding;
+      box(
+        accessX,
+        0.84,
+        (start + end) / 2,
+        width,
+        height,
+        Math.abs(end - start),
+        color,
+        0.04,
+      );
+      for (const bay of bays) {
+        const walking = bays === checkpoint.pedestrian;
+        box(
+          (accessX + bay.x) / 2,
+          0.84,
+          bay.z,
+          Math.abs(accessX - bay.x),
+          height,
+          walking ? 1.1 : 2.8,
+          color,
+          0.04,
+        );
+        box(
+          bay.x,
+          0.84,
+          bay.z,
+          walking ? 1.8 : 6.2,
+          height,
+          walking ? 1.8 : 3.4,
+          color,
+          0.06,
+        );
+        if (!walking) {
+          for (const edge of [-1.65, 1.65])
+            box(bay.x, 0.92, bay.z + edge, 6, 0.025, 0.1, "#e6c486");
+          box(
+            bay.x + Math.sign(bay.x - accessX) * 3,
+            0.92,
+            bay.z,
+            0.1,
+            0.025,
+            3.2,
+            "#e6c486",
+          );
+        }
+      }
+    }
+    for (const dz of [-8.1, 8.1])
+      box(gateX, 4.2, gate.z + dz, 0.9, 7.2, 0.9, "#878398", 0.08);
+    box(gateX, 8, gate.z, 1.15, 0.6, 17.4, chain.color, 0.1, true);
     box(
-      bay.x,
-      0.825,
-      (bay.z + gate.z) / 2,
-      2.8,
-      0.12,
-      Math.abs(gate.z - bay.z),
-      "#454555",
-    );
-    box(
-      district.walkBay.x,
-      0.88,
-      district.walkBay.z,
-      4.6,
-      0.22,
-      2.6,
-      "#727380",
-      0.1,
-    );
-    for (const edge of [-2.8, 2.8])
-      box(bay.x + edge, 0.9, bay.z, 0.1, 0.05, 5.3, "#e6c486");
-    for (const dz of [-6.6, 6.6])
-      box(gateX, 3.15, gate.z + dz, 0.7, 5.1, 0.7, "#878398", 0.08);
-    box(gateX, 5.85, gate.z, 0.95, 0.45, 14, chain.color, 0.1, true);
-    box(
-      gateX - gate.outward.x * 2,
-      1.7,
-      gate.z + 8,
-      2.6,
+      checkpoint.booth.x,
       2.1,
-      2.5,
+      checkpoint.booth.z,
+      checkpoint.booth.width,
+      3,
+      3.2,
       "#545265",
       0.15,
     );
-    sign("RELAY", gateX, 6.8, gate.z, 5.6, null, Math.PI / 2);
+    sign("RELAY", gateX, 9.5, gate.z, 9.5, null, Math.PI / 2);
     gateLights.set(
       district.id,
-      box(gateX, 5.35, gate.z + 6.6, 0.52, 0.52, 0.52, "#6ddbaf", 0.08, true),
+      box(gateX, 7.3, gate.z + 8.1, 0.65, 0.65, 0.65, "#6ddbaf", 0.08, true),
     );
   }
 

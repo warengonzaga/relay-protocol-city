@@ -173,6 +173,25 @@ test("demo scenarios cover same-chain runs, app routes, failures and both train 
     ),
   );
   assert.equal(CHAIN_CONFIG.length, 12);
+  const checkpoint = createDemoTransfers(8, "destination-pending");
+  assert.equal(new Set(checkpoint.map((trip) => trip.id)).size, 8);
+  assert.equal(
+    checkpoint.filter((trip) => trip.kind === "pedestrian").length,
+    4,
+  );
+  assert.equal(checkpoint.filter((trip) => trip.kind === "car").length, 4);
+  assert.equal(
+    checkpoint.filter((trip) => trip.originChainId === 8453).length,
+    4,
+  );
+  assert.ok(
+    checkpoint.every(
+      (trip) =>
+        trip.stage === "fill" &&
+        trip.status === "pending" &&
+        trip.destinationChainId === 1,
+    ),
+  );
   assert.equal(
     new Set(CHAIN_CONFIG.map((chain) => chain.flightBearing)).size,
     12,

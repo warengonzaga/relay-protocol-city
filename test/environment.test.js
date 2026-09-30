@@ -120,6 +120,16 @@ test("authored neighborhoods render canonical lots with intact models and clear 
       z = building.position.z;
     if (district.id === 1 && site.role === "integrator")
       rankedHeights[site.slot] = building.userData.height * building.scale.y;
+    if (site.role === "police") {
+      assert.ok(
+        building.userData.height * building.scale.y >= 12,
+        "police stations are substantial civic buildings",
+      );
+      assert.ok(
+        halfX * halfZ * 4 >= 40,
+        "police stations have a visible building footprint",
+      );
+    }
     assert.ok(halfX * 2 <= site.maxWidth + 0.5 + 1e-8);
     assert.ok(halfZ * 2 <= site.maxDepth + 0.5 + 1e-8);
     for (const dx of [-halfX, halfX])
@@ -196,7 +206,13 @@ test("authored neighborhoods render canonical lots with intact models and clear 
   let gateFixtureCount = 0;
   let busApronCount = 0;
   const pavement = [],
-    crosswalks = [];
+    crosswalks = [],
+    crosswalkBounds = [],
+    entranceSurfaces = [],
+    driveways = [],
+    checkpointSurfaces = [];
+  let vehicleBayCount = 0,
+    pedestrianBayCount = 0;
   environment.group.traverse((object) => {
     const dimensions = object.geometry?.parameters;
     if (!object.geometry) return;
@@ -211,10 +227,11 @@ test("authored neighborhoods render canonical lots with intact models and clear 
     const gateFixture =
       object.material?.map?.image?.caption?.text === "RELAY" ||
       [
-        [0.7, 5.1, 0.7],
-        [0.95, 0.45, 14],
-        [2.6, 2.1, 2.5],
-        [0.52, 0.52, 0.52],
+        [0.9, 7.2, 0.9],
+        [1.15, 0.6, 17.4],
+        [3, 3, 3.2],
+        [1.8, 3, 3.2],
+        [0.65, 0.65, 0.65],
       ].some(
         ([width, height, depth]) =>
           dimensions?.width === width &&
@@ -223,7 +240,18 @@ test("authored neighborhoods render canonical lots with intact models and clear 
       );
     const color = object.material?.color?.getHexString();
     const roadDetail = color === "727380" || color === "d8d5e3";
-    if (!garage && !gateFixture && !roadDetail && !busApron) return;
+    const entranceSurface = color === "4c505e" || color === "878792";
+    const checkpointSurface =
+      dimensions?.height === 0.13 || dimensions?.height === 0.23;
+    if (
+      !garage &&
+      !gateFixture &&
+      !roadDetail &&
+      !busApron &&
+      !entranceSurface &&
+      !checkpointSurface
+    )
+      return;
     object.geometry.computeBoundingBox();
     const count = object.isInstancedMesh ? object.count : 1;
     for (let index = 0; index < count; index++) {
@@ -249,8 +277,25 @@ test("authored neighborhoods render canonical lots with intact models and clear 
         gateFixtureCount++;
       }
       if (color === "727380") pavement.push(bounds);
-      if (color === "d8d5e3")
+      if (color === "d8d5e3") {
         crosswalks.push(bounds.getCenter(new THREE.Vector3()));
+        crosswalkBounds.push(bounds);
+      }
+      if (entranceSurface) entranceSurfaces.push(bounds);
+      if (color === "4c505e") driveways.push(bounds);
+      if (checkpointSurface) checkpointSurfaces.push(bounds);
+      if (
+        dimensions?.height === 0.13 &&
+        dimensions?.width === 6.2 &&
+        dimensions?.depth === 3.4
+      )
+        vehicleBayCount++;
+      if (
+        dimensions?.height === 0.23 &&
+        dimensions?.width === 1.8 &&
+        dimensions?.depth === 1.8
+      )
+        pedestrianBayCount++;
       if (!garage && !busApron) continue;
       for (const road of ROAD_SEGMENTS)
         assert.equal(
@@ -267,6 +312,108 @@ test("authored neighborhoods render canonical lots with intact models and clear 
   });
   assert.equal(gateFixtureCount, DISTRICTS.length * 6);
   assert.equal(busApronCount, DISTRICTS.length);
+  assert.equal(
+    vehicleBayCount,
+    6,
+    "Ethereum has four vehicle bays and Base has two",
+  );
+  assert.equal(
+    pedestrianBayCount,
+    6,
+    "walkers have their own matching holding positions",
+  );
+  const overlapsXZ = (a, b) =>
+    a.max.x > b.min.x + 1e-5 &&
+    a.min.x < b.max.x - 1e-5 &&
+    a.max.z > b.min.z + 1e-5 &&
+    a.min.z < b.max.z - 1e-5;
+  for (const surface of checkpointSurfaces) {
+    const center = surface.getCenter(new THREE.Vector3());
+    const district = getDistrictAt(center.x, center.z);
+    assert.ok(district, "the checkpoint stands inside its district");
+    for (const x of [surface.min.x, surface.max.x])
+      for (const z of [surface.min.z, surface.max.z])
+        assert.equal(
+          getDistrictAt(x, z)?.id,
+          district.id,
+          `checkpoint paving at ${center.toArray()} survives the district crop`,
+        );
+    for (const road of ROAD_SEGMENTS)
+      assert.equal(
+        overlapsXZ(surface, {
+          min: {
+            x: Math.min(road.x1, road.x2) - 5.9,
+            z: Math.min(road.z1, road.z2) - 5.9,
+          },
+          max: {
+            x: Math.max(road.x1, road.x2) + 5.9,
+            z: Math.max(road.z1, road.z2) + 5.9,
+          },
+        }),
+        false,
+        `checkpoint paving at ${center.toArray()} leaves the through road and sidewalk clear`,
+      );
+    for (const lot of lots)
+      assert.equal(
+        overlapsXZ(surface, {
+          min: { x: lot.x - lot.halfX, z: lot.z - lot.halfZ },
+          max: { x: lot.x + lot.halfX, z: lot.z + lot.halfZ },
+        }),
+        false,
+        "checkpoint service routes leave buildings clear",
+      );
+  }
+  for (const surface of entranceSurfaces) {
+    for (const road of ROAD_SEGMENTS)
+      assert.equal(
+        overlapsXZ(surface, {
+          min: {
+            x: Math.min(road.x1, road.x2) - 3.5,
+            z: Math.min(road.z1, road.z2) - 3.5,
+          },
+          max: {
+            x: Math.max(road.x1, road.x2) + 3.5,
+            z: Math.max(road.z1, road.z2) + 3.5,
+          },
+        }),
+        false,
+        `entrance surface at ${surface.getCenter(new THREE.Vector3()).toArray()} must not extend into asphalt`,
+      );
+    assert.equal(
+      crosswalkBounds.some((crosswalk) => overlapsXZ(surface, crosswalk)),
+      false,
+      "entrance paving must not cover crossing stripes",
+    );
+  }
+  for (const [index, driveway] of driveways.entries())
+    assert.equal(
+      driveways.slice(index + 1).some((other) => overlapsXZ(driveway, other)),
+      false,
+      "adjacent driveways stay separate",
+    );
+  const drivingSites = DISTRICTS.flatMap((district) => district.sites).filter(
+    (site) => site.address.garage && site.garage !== false,
+  );
+  assert.equal(driveways.length, drivingSites.length);
+  for (const site of drivingSites) {
+    const address = site.address;
+    const surface = driveways.find(
+      (bounds) =>
+        Math.abs(bounds.getCenter(new THREE.Vector3()).x - address.road.x) <
+          1e-5 &&
+        address.garage.z >= bounds.min.z - 1e-5 &&
+        address.garage.z <= bounds.max.z + 1e-5,
+    );
+    assert.ok(
+      surface,
+      `${site.id} has a rendered driveway or terminal connector`,
+    );
+    const streetEnd = address.sidewalkSide > 0 ? surface.min.z : surface.max.z;
+    assert.ok(
+      Math.abs(streetEnd - address.road.z - address.sidewalkSide * 5.9) < 1e-5,
+      `${site.id} entrance ends flush with the outer pavement edge`,
+    );
+  }
   for (const [x, z, h, v] of [
     [-122, -42, 1, 1],
     [2, -42, -1, 1],

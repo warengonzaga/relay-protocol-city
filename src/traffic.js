@@ -13,6 +13,8 @@ import {
   GROUND,
   SIGNAL_JUNCTIONS,
   getJourneyAddress,
+  getInspectionBay,
+  getInspectionCapacity,
   getDistrict,
   getSignalState,
 } from "./world-map.js";
@@ -63,28 +65,55 @@ export function createTraffic(scene, models, environment, onSelect) {
           (item.transfer.originChainId === item.transfer.destinationChainId &&
             decision(item) === "wait"));
 
-  function inspectionDistrict(item) {
-    if (item.transfer.kind === "train" || item.transfer.kind === "airplane")
-      return null;
-    if (item.destinationCheck) return item.transfer.destinationChainId;
-    if (needsInspection(item)) return item.transfer.originChainId;
-    if (destinationPending(item)) return item.transfer.destinationChainId;
-    if (["inspection-entry", "gate", "board", "rejoin"].includes(item.phase))
-      return item.transfer.originChainId;
-    return null;
+  function inspectionSlots(transfer) {
+    if (!needsInspection({ transfer }) && !destinationPending({ transfer }))
+      return [];
+    const walking = transfer.kind === "pedestrian";
+    const reservations = [];
+    // ponytail: reserve both ends for late failures; cross-chain capacity is the
+    // smaller pool. Use per-stage reservations only if higher throughput is needed.
+    for (const chainId of new Set([
+      transfer.originChainId,
+      transfer.destinationChainId,
+    ])) {
+      const occupied = new Set(
+        active
+          .flatMap((item) => item.reservations ?? [])
+          .filter(
+            (reservation) =>
+              reservation.chainId === chainId &&
+              reservation.walking === walking,
+          )
+          .map((reservation) => reservation.slot),
+      );
+      const capacity = getInspectionCapacity(chainId, walking);
+      let slot = 0;
+      while (slot < capacity && occupied.has(slot)) slot++;
+      if (slot === capacity) return null;
+      reservations.push({ chainId, walking, slot });
+    }
+    return reservations;
   }
-  function destinationAvailable(item) {
-    const candidates = active.filter(
-      (other) => inspectionDistrict(other) === item.transfer.destinationChainId,
-    );
-    const holder =
-      candidates.find(
-        (other) =>
-          other.destinationCheck ||
-          (["inspection-entry", "gate", "board"].includes(other.phase) &&
-            needsInspection(other)),
-      ) ?? candidates[0];
-    return !holder || holder === item;
+  function releaseVacatedSlots(item) {
+    if (!item.reservations.length) return;
+    if (
+      ["depart", "onward"].includes(item.phase) &&
+      decision(item) === "go" &&
+      !destinationPending(item)
+    )
+      item.reservations = [];
+    else if (["return", "police"].includes(item.phase))
+      item.reservations = item.reservations.filter(
+        ({ chainId, walking, slot }) => {
+          const bay = getInspectionBay(chainId, walking, slot);
+          return (
+            Math.hypot(
+              item.root.position.x - bay.x,
+              item.root.position.z - bay.z,
+            ) <= (walking && item.phase !== "police" ? 3 : 8)
+          );
+        },
+      );
   }
 
   function remove(item) {
@@ -122,13 +151,7 @@ export function createTraffic(scene, models, environment, onSelect) {
       );
     const walking = transfer.kind === "pedestrian";
     const address = getJourneyAddress(transfer);
-    // ponytail: one shared border bay per district; extra checks stay tracked off-scene.
-    const inspection = inspectionDistrict({ transfer });
-    if (
-      inspection !== null &&
-      active.some((item) => inspectionDistrict(item) === inspection)
-    )
-      return false;
+    if (inspectionSlots(transfer) === null) return false;
     const entrance = walking ? address.door : address.garage;
     const start = new THREE.Vector3(
       entrance.x,
@@ -174,7 +197,18 @@ export function createTraffic(scene, models, environment, onSelect) {
         returning ? "flight-return" : "flight",
       );
     } else {
-      item.route = groundRoute(transfer);
+      item.reservations = inspectionSlots(transfer);
+      item.route = groundRoute(transfer, {
+        originSlot:
+          item.reservations.find(
+            (reservation) => reservation.chainId === transfer.originChainId,
+          )?.slot ?? 0,
+        destinationSlot:
+          item.reservations.find(
+            (reservation) =>
+              reservation.chainId === transfer.destinationChainId,
+          )?.slot ?? 0,
+      });
       useCurve(item, item.route.depart, "depart");
     }
     item.label.visible ||= selected === transfer.id;
@@ -307,14 +341,81 @@ export function createTraffic(scene, models, environment, onSelect) {
     item.wait = 0;
     item.policeCurve = curve;
     item.police = createPolice(models, item.transfer, item.root);
-    item.police.root.position
-      .copy(item.root.position)
-      .add(new THREE.Vector3(1.5, 0, 0));
-    item.police.root.rotation.y = -Math.PI / 2;
+    item.police.root.position.copy(curve.getPointAt(0));
+    const tangent = curve.getTangentAt(0);
+    item.police.root.rotation.y = Math.atan2(tangent.x, tangent.z);
     group.add(item.police.root);
+  }
+  function checkpointConflict(item, chainId, entering) {
+    const district = getDistrict(chainId);
+    return active.some((other) => {
+      if (
+        other === item ||
+        !other.route ||
+        (other.transfer.kind === "pedestrian" &&
+          !["police", "board"].includes(other.phase))
+      )
+        return false;
+      const otherChain = other.destinationCheck
+        ? other.transfer.destinationChainId
+        : other.transfer.originChainId;
+      const point = (other.police?.root ?? other.root).position;
+      const leaving =
+        otherChain === chainId &&
+        ["rejoin", "destination-rejoin", "return", "police", "board"].includes(
+          other.phase,
+        );
+      // Base's walking and vehicle pools approach the same aisle from opposite sides.
+      if (
+        leaving &&
+        (entering ||
+          (point.z - district.roadZ) * (item.root.position.z - district.roadZ) <
+            0)
+      ) {
+        const bays = [
+          ...district.checkpoint.vehicle,
+          ...district.checkpoint.pedestrian,
+        ];
+        return (
+          point.x >=
+            Math.min(district.checkpoint.accessX, ...bays.map((bay) => bay.x)) -
+              2 &&
+          point.x <=
+            Math.max(district.checkpoint.accessX, ...bays.map((bay) => bay.x)) +
+              2 &&
+          point.z >=
+            Math.min(district.roadZ, ...bays.map((bay) => bay.z)) - 4 &&
+          point.z <= Math.max(district.roadZ, ...bays.map((bay) => bay.z)) + 4
+        );
+      }
+      if (entering) return false;
+      if (
+        otherChain === chainId &&
+        ["inspection-entry", "destination-entry"].includes(other.phase)
+      )
+        return true;
+      const approaching =
+        other.phase === "depart" && needsInspection(other)
+          ? { chainId: other.transfer.originChainId, progress: 1 }
+          : other.phase === "onward" && destinationPending(other)
+            ? {
+                chainId: other.transfer.destinationChainId,
+                progress: other.route.destinationProgress,
+              }
+            : null;
+      return (
+        approaching?.chainId === chainId &&
+        (approaching.progress - other.progress) * other.length <= 10
+      );
+    });
   }
   function updateGround(item, dt) {
     if (item.phase === "arrival-wait") {
+      if (
+        terminal(item.transfer) &&
+        checkpointConflict(item, item.transfer.destinationChainId, false)
+      )
+        return;
       if (
         item.transfer.stage === "complete" ||
         (mode === "demo" && item.released)
@@ -346,10 +447,11 @@ export function createTraffic(scene, models, environment, onSelect) {
       item.wait += dt;
       const outcome = decision(item);
       if (
-        outcome === "go" &&
-        (!destinationPending(item) || destinationAvailable(item))
+        outcome !== "wait" &&
+        checkpointConflict(item, item.transfer.originChainId, false)
       )
-        useCurve(item, item.route.resume, "rejoin");
+        return;
+      if (outcome === "go") useCurve(item, item.route.resume, "rejoin");
       else if (outcome === "return")
         useCurve(item, item.route.returnFromHold, "return");
       else if (outcome === "blocked") boardPolice(item);
@@ -378,7 +480,21 @@ export function createTraffic(scene, models, environment, onSelect) {
           item.transfer.blocked ? "back-to-gate" : "return",
         );
     }
-    const stopped = stopForTraffic(item);
+    const entry =
+      item.phase === "depart" && needsInspection(item)
+        ? { chainId: item.transfer.originChainId, progress: 1 }
+        : item.phase === "onward" && destinationPending(item)
+          ? {
+              chainId: item.transfer.destinationChainId,
+              progress: item.route.destinationProgress,
+            }
+          : null;
+    const yielding =
+      isRoadVehicle(item.transfer.kind) &&
+      entry &&
+      (entry.progress - item.progress) * item.length <= 8 &&
+      checkpointConflict(item, entry.chainId, true);
+    const stopped = yielding || stopForTraffic(item);
     if (!stopped) {
       item.progress = Math.min(
         1,
@@ -396,12 +512,9 @@ export function createTraffic(scene, models, environment, onSelect) {
       useCurve(item, item.route.destinationHold, "destination-entry");
     }
     position(item);
+    releaseVacatedSlots(item);
     if (item.progress >= 1) {
-      if (
-        item.phase === "depart" &&
-        !needsInspection(item) &&
-        (!destinationPending(item) || destinationAvailable(item))
-      ) {
+      if (item.phase === "depart" && !needsInspection(item)) {
         useCurve(item, item.route.onward, "onward");
       } else if (["depart", "back-to-gate"].includes(item.phase)) {
         useCurve(item, item.route.hold, "inspection-entry");

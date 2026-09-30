@@ -295,10 +295,7 @@ export async function createCity(
         .filter((element) => !element.hidden)
         .map((element) => element.getBoundingClientRect());
       for (const label of labels) {
-        if (
-          label.chainId !== visibleChainId ||
-          (focusedDistrict && label.chainId !== focusedDistrict.id)
-        ) {
+        if (focusedDistrict || label.chainId !== visibleChainId) {
           label.element.style.visibility = "hidden";
           continue;
         }

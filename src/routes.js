@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { getChain } from "./activity.js";
 import {
   getJourneyAddress,
+  getInspectionBay,
   requestSeed,
   getDistrict,
   getGate,
@@ -140,6 +141,7 @@ function lanePoints(nodes, y) {
 }
 
 function pavementPoints(nodes, y) {
+  if (nodes.length < 2) return [];
   return nodes.map((p, i) => {
     const before = nodes[i - 1] ?? nodes[i + 1],
       after = nodes[i + 1] ?? nodes[i - 1];
@@ -184,7 +186,9 @@ const checkpoint = (transfer) => {
   return {
     x: sameChain
       ? d.loop.left
-      : d.gate.x + (d.gate.side === "west" ? 4.5 : -4.5),
+      : transfer.kind === "pedestrian"
+        ? d.checkpoint.walkAccessX
+        : d.checkpoint.accessX,
     z: d.roadZ,
   };
 };
@@ -198,8 +202,24 @@ function fromBayTo(address, bay, approach, y) {
     [address.garage.x, y, address.garage.z],
   ]);
 }
+function policeRoute(district, bay, walking) {
+  const inward = Math.sign(district.checkpoint.accessX - bay.x);
+  // Line up the tow behind its truck and leave clearance for the adjacent bay on the turn.
+  return fromBayTo(
+    district.police,
+    { x: bay.x + inward * (walking ? 1.5 : 5.2), z: bay.z },
+    {
+      x: district.checkpoint.policeAccessX ?? district.checkpoint.accessX,
+      z: district.roadZ,
+    },
+    GROUND + 0.23,
+  );
+}
 
-export function groundRoute(transfer) {
+export function groundRoute(
+  transfer,
+  { originSlot = 0, destinationSlot = 0 } = {},
+) {
   const walking = transfer.kind === "pedestrian";
   const origin = getJourneyAddress(transfer);
   const sameChain = transfer.originChainId === transfer.destinationChainId;
@@ -235,9 +255,9 @@ export function groundRoute(transfer) {
     gate = { x: end.x, z: end.z };
   const border = getGate(transfer.originChainId, walking);
   const destinationCenter = {
-    x:
-      destination.district.gate.x +
-      (destination.district.gate.side === "west" ? 4.5 : -4.5),
+    x: walking
+      ? destination.district.checkpoint.walkAccessX
+      : destination.district.checkpoint.accessX,
     z: destination.district.roadZ,
   };
   let onwardNodes;
@@ -262,12 +282,18 @@ export function groundRoute(transfer) {
   if (walking && sameChain && onwardStreets.length)
     onwardStreets[0][2] = gate.z;
   const finish = walking ? destination.door : destination.garage;
-  const toDestination = roundedPath([[gate.x, y, gate.z], ...onwardStreets]);
-  const destinationEntry = toDestination.getPointAt(1);
   const arrivalStreets = (walking ? pavementPoints : lanePoints)(
     streetNodes(destinationCenter, walking ? arrival.road : destination.road),
     y,
   );
+  // Finish the local tour's turn before the bay junction so departing cars
+  // rejoin the onward lane without doubling back through the service aisle.
+  const toDestination = roundedPath([
+    [gate.x, y, gate.z],
+    ...onwardStreets,
+    ...arrivalStreets.slice(0, 1),
+  ]);
+  const destinationEntry = toDestination.getPointAt(1);
   const onward = new THREE.CurvePath();
   onward.add(toDestination);
   onward.add(
@@ -283,37 +309,46 @@ export function groundRoute(transfer) {
   onward.getPointAt = onward.getPoint;
   onward.getTangentAt = onward.getTangent;
   const destinationProgress = toDestination.getLength() / onward.getLength();
-  const destinationBay = walking
-    ? destination.district.walkBay
-    : destination.district.bay;
+  const destinationBay = getInspectionBay(
+    transfer.destinationChainId,
+    walking,
+    destinationSlot,
+  );
+  const destinationAccess = {
+    x: walking
+      ? destination.district.checkpoint.walkAccessX
+      : destination.district.checkpoint.accessX,
+    z: destination.district.roadZ,
+  };
+  const destinationHoldingStreets = (walking ? pavementPoints : lanePoints)(
+    streetNodes(destinationCenter, destinationAccess),
+    y,
+  );
   const destinationHold = roundedPath(
     [
       destinationEntry,
-      [destinationCenter.x, y, destinationBay.z],
+      ...destinationHoldingStreets,
+      [destinationAccess.x, y, destinationBay.z],
       [destinationBay.x, y, destinationBay.z],
     ],
     0.6,
   );
   const destinationResume = reversePath(destinationHold);
-  const destinationPolice = fromBayTo(
-    destination.district.police,
+  const destinationPolice = policeRoute(
+    destination.district,
     destinationBay,
-    destinationCenter,
-    GROUND + 0.23,
+    walking,
   );
-  const bay = walking ? district.walkBay : district.bay;
+  const bay = getInspectionBay(transfer.originChainId, walking, originSlot);
   const inspectionCenter = {
-    x: district.gate.x + (district.gate.side === "west" ? 4.5 : -4.5),
+    x: walking ? district.checkpoint.walkAccessX : district.checkpoint.accessX,
     z: district.roadZ,
   };
-  const holdingStreets = sameChain
-    ? (walking ? pavementPoints : lanePoints)(
-        streetNodes(center, inspectionCenter),
-        y,
-      )
-    : [];
-  if (walking && sameChain && holdingStreets.length)
-    holdingStreets[0] = [gate.x, y, gate.z];
+  const holdingStreets = (walking ? pavementPoints : lanePoints)(
+    streetNodes(center, inspectionCenter),
+    y,
+  );
+  if (walking && holdingStreets.length) holdingStreets[0] = [gate.x, y, gate.z];
   const hold = roundedPath(
     [
       [gate.x, y, gate.z],
@@ -331,12 +366,7 @@ export function groundRoute(transfer) {
     returnFromHold.add(resume);
     returnFromHold.add(reversePath(depart));
   }
-  const police = fromBayTo(
-    district.police,
-    bay,
-    inspectionCenter,
-    GROUND + 0.23,
-  );
+  const police = policeRoute(district, bay, walking);
   return {
     depart,
     onward,

@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import * as THREE from "three";
 import { fixture, transfer } from "./traffic-fixture.js";
 import { flightRoute, groundRoute } from "../src/routes.js";
-import { SIGNAL_JUNCTIONS, getSignalState } from "../src/world-map.js";
+import {
+  SIGNAL_JUNCTIONS,
+  getSignalState,
+  getInspectionCapacity,
+} from "../src/world-map.js";
 import { createDemoTransfers } from "../src/activity.js";
 import { refreshTravelerPace } from "../src/travelers.js";
 
@@ -331,8 +335,14 @@ test("a pending border check does not trap a confirmed trip in the through lane"
       originChainId: 8453,
       stage: "complete",
     });
+    const capacity = Math.min(
+      getInspectionCapacity(8453, kind === "pedestrian"),
+      getInspectionCapacity(1, kind === "pedestrian"),
+    );
     const checks = [
-      transfer(1300 + index * 2, { kind, originChainId: 8453 }),
+      ...Array.from({ length: capacity }, (_, n) =>
+        transfer(1300 + index * 10 + n, { kind, originChainId: 8453 }),
+      ),
       pending,
     ];
     f.traffic.setData(checks, "live", true);
@@ -542,20 +552,24 @@ test("bounded request tracking rotates across active and queued unresolved IDs",
 
 test("checks sharing an origin remain tracked off the through lane and drain after confirmed releases", (t) => {
   const f = fixture(t);
-  const requests = [80, 81, 82].map((number) =>
-    transfer(number, { originChainId: 8453 }),
+  const capacity = Math.min(
+    getInspectionCapacity(8453),
+    getInspectionCapacity(1),
+  );
+  const requests = Array.from({ length: capacity + 1 }, (_, index) =>
+    transfer(80 + index, { originChainId: 8453 }),
   );
   f.traffic.setData(requests, "live");
   f.until(
-    () => f.traffic.stats.gates >= 1,
-    "the lead car must reach its gate without a following-car deadlock",
+    () => f.traffic.stats.gates === capacity,
+    "cars must reach their separate bays without a following-car deadlock",
   );
   f.tick(30);
-  assert.equal(f.traffic.count, 1);
-  assert.equal(f.traffic.stats.gates, 1);
+  assert.equal(f.traffic.count, capacity);
+  assert.equal(f.traffic.stats.gates, capacity);
   assert.equal(
     f.traffic.stats.queued,
-    2,
+    1,
     "additional checks must not form a tail across the through lane",
   );
   assert.deepEqual(

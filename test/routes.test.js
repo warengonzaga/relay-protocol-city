@@ -397,7 +397,10 @@ test("only onward routes cross origin borders and inspection bays clear the thro
           .distanceTo(route.depart.getPointAt(0)) < 0.001,
       );
       assert.ok(
-        route.police.getPointAt(0).distanceTo(route.hold.getPointAt(1)) < 0.2,
+        Math.abs(
+          route.police.getPointAt(0).distanceTo(route.hold.getPointAt(1)) -
+            (kind === "pedestrian" ? 1.5 : 5.2),
+        ) < 0.2,
       );
       assert.ok(
         sample(route.onward).some(({ point: p }) =>
@@ -510,7 +513,12 @@ test("destination inspection paths meet the onward route exactly and end at the 
         close(held.x, route.destinationBay.x, "destination bay x");
         close(held.z, route.destinationBay.z, "destination bay z");
         assert.ok(Math.abs(held.z - destination.roadZ) >= 9);
-        assert.ok(held.distanceTo(route.destinationPolice.getPointAt(0)) < 0.2);
+        assert.ok(
+          Math.abs(
+            held.distanceTo(route.destinationPolice.getPointAt(0)) -
+              (kind === "pedestrian" ? 1.5 : 5.2),
+          ) < 0.2,
+        );
         for (const curve of [
           route.destinationHold,
           route.destinationResume,

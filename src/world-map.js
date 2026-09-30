@@ -277,6 +277,20 @@ export function getGate(chainId, pedestrian = false) {
   const d = getDistrict(chainId);
   return { ...d.gate, z: d.roadZ - (pedestrian ? 4.7 : 0) };
 }
+export function getInspectionCapacity(chainId, walking = false) {
+  return (
+    getDistrict(chainId).checkpoint?.[walking ? "pedestrian" : "vehicle"]
+      ?.length ?? 0
+  );
+}
+export function getInspectionBay(chainId, walking = false, slot = 0) {
+  const bay =
+    getDistrict(chainId).checkpoint?.[walking ? "pedestrian" : "vehicle"]?.[
+      slot
+    ];
+  if (!bay) throw new RangeError("The requested inspection bay does not exist");
+  return bay;
+}
 export function getSignalState(seconds, axis) {
   const phase = ((seconds % 18) + 18) % 18;
   if (axis === "x") return phase < 7 ? "green" : phase < 9 ? "yellow" : "red";

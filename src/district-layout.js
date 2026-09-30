@@ -76,8 +76,24 @@ export const DISTRICT_LAYOUTS = {
       { x: -122, z: 0 },
     ],
     gate: { x: 20, z: 0, side: "east", outward: { x: 1, z: 0 } },
-    bay: { x: 15, z: -9 },
-    walkBay: { x: 15, z: -13 },
+    checkpoint: {
+      accessX: 9.5,
+      policeAccessX: 9.4,
+      walkAccessX: 18.3,
+      vehicle: [
+        { x: 15, z: -10 },
+        { x: 15, z: -18 },
+        { x: 15, z: -26 },
+        { x: 15, z: -34 },
+      ],
+      pedestrian: [
+        { x: 17, z: -14 },
+        { x: 17, z: -22 },
+        { x: 17, z: -30 },
+        { x: 17, z: -38 },
+      ],
+      booth: { x: 17.1, z: 10, width: 3 },
+    },
     station: { x: -76, z: 42, stairDirection: -1 },
     sites: [
       site(
@@ -347,7 +363,7 @@ export const DISTRICT_LAYOUTS = {
         4,
         { garage: false },
       ),
-      site("eth-police", "police", 13, 16, 0, 1, "building-a", 6.2, 5.5, 6),
+      site("eth-police", "police", 13.5, 23, 0, 1, "building-f", 16, 9, 11),
       // Closely spaced north-side houses frame the financial skyline.
       site(
         "eth-north-west",
@@ -626,30 +642,7 @@ export const DISTRICT_LAYOUTS = {
         3.5,
         { garage: false },
       ),
-      site(
-        "eth-east-apartments",
-        "scenery",
-        13,
-        -29,
-        -42,
-        1,
-        "building-f",
-        8,
-        5.4,
-        6,
-      ),
-      site(
-        "eth-east-corner-block",
-        "scenery",
-        13,
-        32,
-        28,
-        1,
-        "building-b",
-        7.4,
-        5.4,
-        5.4,
-      ),
+
       site(
         "eth-west-apartments",
         "scenery",
@@ -833,8 +826,19 @@ export const DISTRICT_LAYOUTS = {
       { x: 80, z: 0 },
     ],
     gate: { x: 68, z: 0, side: "west", outward: { x: -1, z: 0 } },
-    bay: { x: 73, z: -9 },
-    walkBay: { x: 73, z: -13 },
+    checkpoint: {
+      accessX: 72.5,
+      walkAccessX: 71.5,
+      vehicle: [
+        { x: 79, z: 24 },
+        { x: 79, z: 32 },
+      ],
+      pedestrian: [
+        { x: 69.5, z: -11 },
+        { x: 69.5, z: -19 },
+      ],
+      booth: { x: 69.4, z: 11, width: 1.8 },
+    },
     station: { x: 109, z: 42, stairDirection: 1 },
     sites: [
       site(
@@ -901,7 +905,7 @@ export const DISTRICT_LAYOUTS = {
         7,
         6,
       ),
-      site("base-police", "police", 133, 24, 12, 1, "building-a", 5.8, 5.5, 6),
+      site("base-police", "police", 133, 26, 12, 1, "building-f", 12, 8, 9),
       site(
         "base-bus-terminal",
         "bus-terminal",
@@ -927,13 +931,13 @@ export const DISTRICT_LAYOUTS = {
         ],
       },
       {
-        x: 87,
+        x: 90,
         z: 32,
-        width: 14,
+        width: 8,
         depth: 8,
         trees: [
-          { x: 84, z: 31, size: 3.8 },
-          { x: 90, z: 33, size: 3.3 },
+          { x: 88, z: 31, size: 3.8 },
+          { x: 92, z: 33, size: 3.3 },
         ],
       },
     ],

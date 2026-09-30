@@ -1,9 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
+import { readFileSync } from "node:fs";
 import { fixture, transfer } from "./traffic-fixture.js";
 import { groundRoute } from "../src/routes.js";
 import { createDemoTransfers } from "../src/activity.js";
+import { createPolice, disposeTraveler } from "../src/travelers.js";
+import {
+  DISTRICTS,
+  getDistrictAt,
+  getInspectionCapacity,
+  getInspectionBay,
+} from "../src/world-map.js";
 
 test("trains animate only confirmed success, stay eligible after pending, and disappear on authoritative failure", (t) => {
   const f = fixture(t);
@@ -113,20 +121,29 @@ test("destination confirmation uses the toll-side bay, releases only on success,
 
 test("destination bay overflow stays tracked while confirmed traffic passes and the queue drains after success", (t) => {
   const f = fixture(t);
-  const pending = [430, 431, 432].map((id) => transfer(id, { stage: "fill" }));
-  const completed = transfer(433, { stage: "complete" });
+  const capacity = Math.min(
+    getInspectionCapacity(8453),
+    getInspectionCapacity(1),
+  );
+  const pending = Array.from({ length: capacity + 1 }, (_, index) =>
+    transfer(430 + index, { stage: "fill" }),
+  );
+  const completed = transfer(4343, { stage: "complete" });
   f.traffic.setData([completed, ...pending.toReversed()], "live");
   f.until(
-    () => f.phase(pending[0].id) === "arrival-wait",
-    "first traveler reaches destination bay",
+    () =>
+      pending
+        .slice(0, capacity)
+        .every((request) => f.phase(request.id) === "arrival-wait"),
+    "travelers reach distinct destination bays",
   );
   f.until(
     () => !f.phase(completed.id),
     "completed traffic passes the occupied bay",
     150,
   );
-  assert.equal(f.traffic.count, 1);
-  assert.equal(f.traffic.stats.queued, 2);
+  assert.equal(f.traffic.count, capacity);
+  assert.equal(f.traffic.stats.queued, 1);
   assert.deepEqual(
     new Set(f.traffic.trackedIds),
     new Set(pending.map((request) => request.id)),
@@ -142,33 +159,183 @@ test("destination bay overflow stays tracked while confirmed traffic passes and 
   );
 });
 
-test("the destination-confirmation demo waits at the bay and only its release control confirms it", (t) => {
+test("all eight destination-demo travelers hold in separate bays and their release drains the checkpoint", (t) => {
   const f = fixture(t);
-  const request = transfer(440, {
-    kind: "pedestrian",
-    stage: "fill",
-    demoScenario: "destination-pending",
-  });
-  f.traffic.setData([request], "demo");
+  const requests = createDemoTransfers(8, "destination-pending");
+  assert.equal(
+    requests.filter((request) => request.originChainId === 8453).length,
+    4,
+  );
+  assert.equal(
+    requests.filter((request) => request.kind === "pedestrian").length,
+    4,
+  );
+  f.traffic.setData(requests, "demo");
   f.until(
-    () => f.phase(request.id) === "arrival-wait",
-    "demo enters destination bay",
+    () => requests.every((request) => f.phase(request.id) === "arrival-wait"),
+    "incoming and local demo travelers occupy all eight bays",
+    240,
+  );
+  const positions = requests.map((request) =>
+    f.root(request.id).position.clone(),
+  );
+  assert.equal(
+    new Set(positions.map((point) => `${point.x}:${point.z}`)).size,
+    8,
   );
   f.tick(20);
-  assert.equal(f.phase(request.id), "arrival-wait");
+  for (const [index, request] of requests.entries()) {
+    assert.equal(f.phase(request.id), "arrival-wait");
+    assert.ok(f.root(request.id).position.distanceTo(positions[index]) < 0.001);
+  }
+  f.traffic.setData([], "demo");
   f.traffic.releasePending();
-  f.until(
-    () => f.phase(request.id) === "destination-rejoin",
-    "demo confirmation rejoins",
+  f.tick();
+  assert.ok(
+    requests.every(
+      (request) => f.traffic.inspect(request.id).transfer.stage === "complete",
+    ),
   );
-  assert.equal(f.traffic.inspect(request.id).transfer.stage, "complete");
+  f.until(
+    () => f.traffic.count === 0,
+    "released demo travelers all finish",
+    240,
+  );
   assert.deepEqual(f.traffic.trackedIds, []);
+});
+
+test("the larger checkpoint parks multiple cars and NPCs in stable separate slots and reuses vacated slots", (t) => {
+  const f = fixture(t);
+  const requests = ["car", "pedestrian"].flatMap((kind, group) =>
+    Array.from(
+      { length: getInspectionCapacity(1, kind === "pedestrian") + 1 },
+      (_, index) =>
+        transfer(5000 + group * 20 + index, {
+          kind,
+          originChainId: 1,
+          destinationChainId: 1,
+          stage: "fill",
+        }),
+    ),
+  );
+  const capacity = getInspectionCapacity(1) + getInspectionCapacity(1, true);
+  f.traffic.setData(requests.toReversed(), "live");
+  f.until(
+    () => f.traffic.stats.gates === capacity,
+    "both authored pools fill without blocking each other",
+    240,
+  );
+  assert.equal(f.traffic.count, capacity);
+  assert.equal(f.traffic.stats.queued, 2);
+  const held = new Map(
+    requests
+      .filter((request) => f.phase(request.id) === "arrival-wait")
+      .map((request) => [request.id, f.root(request.id).position.clone()]),
+  );
+  assert.equal(
+    new Set([...held.values()].map((point) => `${point.x}:${point.z}`)).size,
+    capacity,
+  );
+  for (const request of requests.filter((request) => held.has(request.id))) {
+    const walking = request.kind === "pedestrian";
+    assert.ok(
+      Array.from({ length: getInspectionCapacity(1, walking) }, (_, slot) =>
+        getInspectionBay(1, walking, slot),
+      ).some(
+        (bay) =>
+          Math.hypot(
+            bay.x - held.get(request.id).x,
+            bay.z - held.get(request.id).z,
+          ) < 0.001,
+      ),
+    );
+  }
+  f.traffic.setData(requests, "live");
+  f.tick(10);
+  for (const [id, point] of held)
+    assert.ok(
+      f.root(id).position.distanceTo(point) < 0.001,
+      "polls never move an occupied slot",
+    );
+  const released = requests.find(
+    (request) => request.kind === "pedestrian" && held.has(request.id),
+  );
+  const waiting = requests.find(
+    (request) => request.kind === "pedestrian" && !held.has(request.id),
+  );
+  f.traffic.setData([{ ...released, stage: "complete" }], "live");
+  f.until(
+    () => f.phase(waiting.id) === "arrival-wait",
+    "overflow uses the pedestrian slot after it clears",
+    240,
+  );
+  assert.ok(
+    f.root(waiting.id).position.distanceTo(held.get(released.id)) < 0.001,
+  );
+  const escorted = requests.find(
+    (request) =>
+      request.kind === "pedestrian" &&
+      held.has(request.id) &&
+      request.id !== released.id,
+  );
+  f.traffic.setData([{ ...escorted, stage: "failed", blocked: false }], "live");
+  f.until(
+    () => f.phase(escorted.id) === "police",
+    "failed walker boards a police escort",
+  );
+  f.until(
+    () => !f.phase(escorted.id),
+    "escort clears the aisle between occupied car spaces",
+    180,
+  );
+  for (const request of requests.filter(
+    (request) => request.kind === "car" && held.has(request.id),
+  )) {
+    assert.equal(f.phase(request.id), "arrival-wait");
+    assert.ok(
+      f.root(request.id).position.distanceTo(held.get(request.id)) < 0.001,
+    );
+  }
+  const failed = requests.find(
+    (request) => request.kind === "car" && held.has(request.id),
+  );
+  const queuedCar = requests.find(
+    (request) => request.kind === "car" && !held.has(request.id),
+  );
+  f.traffic.setData([{ ...failed, stage: "failed", blocked: false }], "live");
+  f.until(
+    () => f.phase(failed.id) === "police",
+    "failed parked car boards a tow truck",
+  );
+  f.until(
+    () => f.phase(queuedCar.id) === "arrival-wait",
+    "overflow uses the vehicle slot after the escort clears it",
+    240,
+  );
+  assert.ok(
+    f.root(queuedCar.id).position.distanceTo(held.get(failed.id)) < 0.001,
+  );
+  f.traffic.setData(
+    requests.map((request) => ({
+      ...request,
+      stage: [failed.id, escorted.id].includes(request.id)
+        ? "failed"
+        : "complete",
+    })),
+    "live",
+  );
+  f.until(
+    () => f.traffic.count === 0 && f.traffic.stats.queued === 0,
+    "all resolved trips drain from the checkpoint",
+    240,
+  );
 });
 
 test("unresolved local trips reserve the border bay without changing their API stage", (t) => {
   const f = fixture(t);
-  const requests = [445, 446].map((id) =>
-    transfer(id, {
+  const capacity = getInspectionCapacity(8453, true);
+  const requests = Array.from({ length: capacity + 1 }, (_, index) =>
+    transfer(445 + index, {
       kind: "pedestrian",
       destinationChainId: 8453,
       stage: "gate",
@@ -176,11 +343,14 @@ test("unresolved local trips reserve the border bay without changing their API s
   );
   f.traffic.setData(requests.toReversed(), "live");
   f.until(
-    () => f.phase(requests[0].id) === "arrival-wait",
-    "local swap reaches the reserved border bay",
+    () =>
+      requests
+        .slice(0, capacity)
+        .every((request) => f.phase(request.id) === "arrival-wait"),
+    "local swaps reach their reserved border bays",
     180,
   );
-  assert.equal(f.traffic.count, 1);
+  assert.equal(f.traffic.count, capacity);
   assert.equal(f.traffic.stats.queued, 1);
   assert.equal(f.traffic.inspect(requests[0].id).transfer.stage, "gate");
   assert.ok(
@@ -199,6 +369,149 @@ test("unresolved local trips reserve the border bay without changing their API s
     "confirmed local requests finish",
     180,
   );
+});
+
+test("a released car lets an entering car clear the shared checkpoint aisle before departing", (t) => {
+  const f = fixture(t);
+  const first = transfer(5400, {
+    originChainId: 1,
+    destinationChainId: 1,
+    stage: "fill",
+  });
+  const second = transfer(5401, {
+    originChainId: 1,
+    destinationChainId: 1,
+    stage: "fill",
+  });
+  f.traffic.setData([first], "live");
+  f.until(() => f.phase(first.id) === "arrival-wait", "first car parks", 180);
+  f.traffic.setData([second], "live");
+  f.until(
+    () => f.phase(second.id) === "destination-entry",
+    "second car enters the aisle",
+    180,
+  );
+  const parked = f.root(first.id).position.clone();
+  f.traffic.setData([{ ...first, stage: "complete" }], "live");
+  f.tick(0.2);
+  assert.equal(f.phase(first.id), "arrival-wait");
+  assert.ok(f.root(first.id).position.distanceTo(parked) < 0.001);
+  f.until(
+    () => f.phase(second.id) === "arrival-wait",
+    "entering car parks without meeting an opposing exit",
+  );
+  f.until(
+    () => !f.phase(first.id),
+    "released car then clears the aisle and finishes",
+    180,
+  );
+  f.traffic.setData([{ ...second, stage: "complete" }], "live");
+  f.until(
+    () => f.traffic.count === 0,
+    "both cars drain after confirmation",
+    180,
+  );
+});
+
+test("police pickup and the full tow rig stay inside every district during the first aisle turn", (t) => {
+  fixture(t);
+  const manifest = JSON.parse(
+    readFileSync(new URL("../public/models/manifest.json", import.meta.url)),
+  ).models;
+  const models = {
+    create(key, size, axis) {
+      const dimensions = manifest[key].size;
+      const scale = size / dimensions[{ x: 0, y: 1, z: 2 }[axis]];
+      const root = new THREE.Group();
+      root.userData.height = dimensions[1] * scale;
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(...dimensions.map((value) => value * scale)),
+        new THREE.MeshBasicMaterial(),
+      );
+      mesh.position.y = root.userData.height / 2;
+      mesh.userData.owned = true;
+      root.add(mesh);
+      return root;
+    },
+  };
+  for (const district of DISTRICTS)
+    for (const kind of ["pedestrian", "car", "bus"])
+      for (
+        let slot = 0;
+        slot < getInspectionCapacity(district.id, kind === "pedestrian");
+        slot++
+      ) {
+        const request = transfer(5500 + slot, {
+          originChainId: district.id,
+          destinationChainId: district.id,
+          kind,
+        });
+        const route = groundRoute(request, {
+          destinationSlot: slot,
+        }).destinationPolice;
+        const police = createPolice(models, request, new THREE.Group());
+        for (let distance = 0; distance <= 12; distance += 0.5) {
+          const progress = distance / route.getLength();
+          police.root.position.copy(route.getPointAt(progress));
+          const tangent = route.getTangentAt(progress);
+          police.root.rotation.y = Math.atan2(tangent.x, tangent.z);
+          police.root.updateMatrixWorld(true);
+          police.root.traverse((node) => {
+            if (!node.isMesh) return;
+            node.geometry.computeBoundingBox();
+            const { min, max } = node.geometry.boundingBox;
+            for (const x of [min.x, max.x])
+              for (const y of [min.y, max.y])
+                for (const z of [min.z, max.z]) {
+                  const corner = new THREE.Vector3(x, y, z).applyMatrix4(
+                    node.matrixWorld,
+                  );
+                  assert.equal(
+                    getDistrictAt(corner.x, corner.z),
+                    district,
+                    `${kind} pickup in ${district.id} slot ${slot} must keep its full footprint inside at ${corner.x},${corner.z}`,
+                  );
+                }
+          });
+        }
+        disposeTraveler(police);
+      }
+});
+
+test("simultaneous failures in Base's opposite checkpoint pools clear without opposing police deadlock", (t) => {
+  const f = fixture(t);
+  const requests = ["car", "pedestrian"].flatMap((kind, group) =>
+    Array.from({ length: 3 }, (_, index) =>
+      transfer(15000 + group * 100 + index, {
+        originChainId: 8453,
+        destinationChainId: 8453,
+        kind,
+        stage: "fill",
+      }),
+    ),
+  );
+  for (const outcome of [
+    { car: "failed", blocked: false },
+    { car: "failed", blocked: true },
+    { car: "complete", blocked: false },
+  ]) {
+    f.traffic.setData(requests.toReversed(), "live", true);
+    f.until(() => f.traffic.stats.gates === 4, "both Base pools fill", 240);
+    assert.equal(f.traffic.stats.queued, 2);
+    f.traffic.setData(
+      requests.map((request) => ({
+        ...request,
+        stage: request.kind === "car" ? outcome.car : "failed",
+        blocked: outcome.blocked,
+      })),
+      "live",
+    );
+    f.until(
+      () => f.traffic.count === 0 && f.traffic.stats.queued === 0,
+      "confirmed cars, police and tow trucks from both sides finish, including the overflow",
+      300,
+    );
+  }
 });
 
 test("focused districts hide airplanes without losing their activity or stopping their simulation", (t) => {

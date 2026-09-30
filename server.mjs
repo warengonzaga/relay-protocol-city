@@ -19,12 +19,35 @@ const MIME_TYPES = {
   ".glb": "model/gltf-binary",
 };
 
+function isOrigin(value) {
+  try {
+    const url = new URL(value);
+    return (
+      ["http:", "https:"].includes(url.protocol) &&
+      !url.hostname.includes("*") &&
+      url.origin === value
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function createServer({
   env = process.env,
   fetchImpl = fetch,
   distDir = fileURLToPath(new URL("./dist", import.meta.url)),
 } = {}) {
   const apiKey = env.RELAY_API_KEY?.trim();
+  const apiOnly = env.API_ONLY === "true";
+  const allowedOrigins = new Set(
+    env.ALLOWED_ORIGINS?.trim()
+      ? env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
+      : [],
+  );
+  if ([...allowedOrigins].some((origin) => !isOrigin(origin)))
+    throw new Error(
+      "ALLOWED_ORIGINS must contain comma-separated HTTP(S) origins without paths, trailing slashes, credentials, or wildcards",
+    );
   const legacy = !apiKey && env.RELAY_ALLOW_LEGACY_PREVIEW === "true";
   const coverage = legacy
     ? "sample"
@@ -182,10 +205,6 @@ export function createServer({
   return createHttpServer(async (req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      res.writeHead(405, { Allow: "GET, HEAD" }).end("Method not allowed");
-      return;
-    }
     let pathname;
     let requestUrl;
     try {
@@ -196,6 +215,46 @@ export function createServer({
       return;
     }
     if (pathname === "/api/activity") {
+      res.setHeader("Vary", "Origin");
+      const origin = req.headers.origin;
+      const serverOrigin = `${req.socket.encrypted ? "https" : "http"}://${req.headers.host}`;
+      if (
+        origin !== undefined &&
+        (!isOrigin(origin) ||
+          (!allowedOrigins.has(origin) && origin !== serverOrigin))
+      ) {
+        res.writeHead(403).end("Origin not allowed");
+        return;
+      }
+      if (origin) res.setHeader("Access-Control-Allow-Origin", origin);
+      if (req.method === "OPTIONS") {
+        res.setHeader(
+          "Vary",
+          "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+        );
+        const method = req.headers["access-control-request-method"];
+        const headers = req.headers["access-control-request-headers"];
+        if (
+          !origin ||
+          !["GET", "HEAD"].includes(method) ||
+          (headers && headers.toLowerCase().trim() !== "accept")
+        ) {
+          res.writeHead(403).end("Preflight not allowed");
+          return;
+        }
+        res.writeHead(204, {
+          "Access-Control-Allow-Methods": "GET, HEAD",
+          ...(headers ? { "Access-Control-Allow-Headers": "Accept" } : {}),
+        });
+        res.end();
+        return;
+      }
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        res
+          .writeHead(405, { Allow: "GET, HEAD, OPTIONS" })
+          .end("Method not allowed");
+        return;
+      }
       const parameters = requestUrl.searchParams.getAll("tracked");
       const ids = parameters.length ? parameters[0].split(",") : [];
       if (
@@ -219,7 +278,21 @@ export function createServer({
       res.end(req.method === "HEAD" ? undefined : JSON.stringify(data));
       return;
     }
-    if (pathname.startsWith("/api/")) {
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      res.writeHead(405, { Allow: "GET, HEAD" }).end("Method not allowed");
+      return;
+    }
+    if (pathname === "/healthz") {
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+      });
+      res.end(
+        req.method === "HEAD" ? undefined : JSON.stringify({ status: "ok" }),
+      );
+      return;
+    }
+    if (apiOnly || pathname.startsWith("/api/")) {
       res.writeHead(404).end("Not found");
       return;
     }

@@ -7,6 +7,9 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "vite build",
+    "build:pages": "vite build --mode pages",
+    "preview": "vite preview",
+    "preview:pages": "vite preview --mode pages",
     "start": "node --env-file-if-exists=.env server.mjs",
     "test": "node --test test/*.test.js"
   },

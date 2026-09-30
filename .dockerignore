@@ -1,0 +1,10 @@
+# Allowlist the API build context. Secrets and frontend assets stay outside it.
+**
+!Dockerfile
+!.dockerignore
+!package.json
+!server.mjs
+!LICENSE
+!src/
+src/**
+!src/activity.js

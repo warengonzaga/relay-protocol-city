@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone } from "three/addons/utils/SkeletonUtils.js";
+import { assetUrl } from "./config.js";
 
 const MODEL_KEYS = [
   "character-a",
@@ -30,7 +31,7 @@ const MODEL_KEYS = [
 ];
 
 export async function loadModels() {
-  const manifestResponse = await fetch("/models/manifest.json");
+  const manifestResponse = await fetch(assetUrl("models/manifest.json"));
   if (!manifestResponse.ok)
     throw new Error("The model manifest could not be loaded.");
   const { models } = await manifestResponse.json();
@@ -38,7 +39,7 @@ export async function loadModels() {
   const loaded = new Map();
   const results = await Promise.allSettled(
     MODEL_KEYS.map(async (key) => {
-      const gltf = await loader.loadAsync(models[key].url);
+      const gltf = await loader.loadAsync(assetUrl(models[key].url));
       gltf.scene.traverse((node) => {
         if (!node.isMesh) return;
         node.castShadow = true;

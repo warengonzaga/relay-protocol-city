@@ -5,6 +5,7 @@ import { CHAIN_CONFIG, createDemoTransfers, getChain } from "./activity.js";
 import { createCity } from "./city.js";
 import { chainMark } from "./chain-marks.js";
 import { icon, hydrateIcons } from "./icons.js";
+import { activityEndpoint, assetUrl } from "./config.js";
 
 const $ = (id) => document.getElementById(id);
 const money = new Intl.NumberFormat("en-US", {
@@ -357,12 +358,22 @@ function renderMode() {
 }
 
 async function loadActivity() {
+  if (!activityEndpoint) {
+    connectedSource = {
+      ...demoSource,
+      notice:
+        "The live feed is not connected yet. This city shows illustrative demo transfers, not real Relay activity.",
+    };
+    applySource();
+    return;
+  }
   try {
     const tracked = city?.trackedIds ?? [];
     const query = tracked.length
       ? `?tracked=${encodeURIComponent(tracked.join(","))}`
       : "";
-    const response = await fetch(`/api/activity${query}`, {
+    const response = await fetch(`${activityEndpoint}${query}`, {
+      credentials: "omit",
       signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) throw new Error("Feed unavailable");
@@ -454,7 +465,7 @@ $("tier-guide").innerHTML = tiers
 const credits = document.createElement("p");
 credits.className = "fine-print";
 credits.innerHTML =
-  '3D models by <a href="https://kenney.nl" target="_blank" rel="noopener noreferrer">Kenney</a>. Airplane and bus by Poly by Google, <a href="/models/poly-google/ATTRIBUTION.txt" target="_blank" rel="noopener noreferrer">CC BY 3.0 · credits</a>.';
+  `3D models by <a href="https://kenney.nl" target="_blank" rel="noopener noreferrer">Kenney</a>. Airplane and bus by Poly by Google, <a href="${assetUrl("models/poly-google/ATTRIBUTION.txt")}" target="_blank" rel="noopener noreferrer">CC BY 3.0 · credits</a>.`;
 $("info-panel").append(credits);
 $("how-button").addEventListener("click", showInfo);
 $("legend-button").addEventListener("click", showInfo);

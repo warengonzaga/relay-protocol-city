@@ -49,23 +49,62 @@ npm run build
 npm start
 ```
 
-The production server serves `dist/` and `/api/activity` on port 4174. Set `HOST` and `PORT` for hosting. Static-only hosts cannot protect an API key; the live feed requires this Node service or an equivalent server function.
+The combined local production server serves `dist/` and `/api/activity` on port 4174. `npm run dev` continues to use Vite's same-origin API proxy. For the split deployment below, `npm run build:pages` builds the frontend for `/relay-protocol-city/`, and the Dockerfile runs only the API. No database is needed.
 
 Tests cover normalization, attribution, stage evidence, bounded tracking, safe serving, all district routes, sidewalks, lanes, train queues, red lights, pending and completion holds, late failures, police cleanup, and same-ID speed updates. The verification scope is recorded in [VERIFICATION.md](VERIFICATION.md).
 
-## Hosting
+## Hosting: GitHub Pages + Railway
 
-The complete live app needs a Node web service because `/api/activity` uses a private Relay API key. The existing server serves both the built city and its API from the same origin.
+One repository supplies two deployments:
 
-For a [Render Node web service](https://render.com/docs/deploy-node-express-app), connect this repository and use:
+| Host | Contents | Configuration |
+| --- | --- | --- |
+| GitHub Pages | `dist/`: the city, models, fonts, and other static assets | Public `VITE_API_URL` build variable |
+| Railway | `server.mjs` and `src/activity.js` in a small Node container | Private `RELAY_API_KEY` runtime variable |
 
-- Runtime: Node.js 22.16 or newer.
-- Build command: `npm ci --include=dev && npm run build`.
-- Start command: `npm start`.
-- Environment: `HOST=0.0.0.0`, `RELAY_NETWORK_SCOPE=integrator`, and `RELAY_ALLOW_LEGACY_PREVIEW=false`.
-- Secret environment variable: `RELAY_API_KEY`, entered in the hosting dashboard. Let the host provide `PORT`.
+The browser renders the 3D scene. Railway fetches and caches Relay activity; it serves no frontend assets in `API_ONLY` mode. The Docker build context allows only the API files, package metadata, and license. It excludes `.env`, `node_modules`, `dist`, and the models, and installs no dependencies.
 
-[GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages) only hosts static files. Hosting the frontend there would require a separate API backend, a configurable API URL/CORS policy, and repository-subpath asset support; this repository does not yet configure that split deployment. [GitHub Actions secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets) are available during workflows, not as a private runtime API for Pages visitors. Never copy `.env` or embed the Relay key in the frontend build. A workflow-generated activity snapshot is possible but would not provide the live pending-stage behavior.
+### 1. Connect the Railway API
+
+Connect this repository's `main` branch with the repository root as the service root. Railway [detects the Dockerfile](https://docs.railway.com/builds/dockerfiles); leave build and start command overrides empty. The container sets `API_ONLY=true` and `HOST=0.0.0.0`, and reads Railway's `PORT`.
+
+Set these service variables:
+
+| Variable | Value |
+| --- | --- |
+| `RELAY_API_KEY` | Your private Relay key, entered only in Railway |
+| `RELAY_NETWORK_SCOPE` | `integrator` unless Relay confirms global access |
+| `RELAY_ALLOW_LEGACY_PREVIEW` | `false` |
+| `ALLOWED_ORIGINS` | `https://waren.build` |
+
+`ALLOWED_ORIGINS` accepts comma-separated exact origins, without paths or trailing slashes. This repository's Pages site inherits the account's `waren.build` domain. Use your deployed frontend's origin when forking or changing domains. This controls browser access; the public activity endpoint is not user-authenticated.
+
+Set the service healthcheck to `/healthz`. It checks the process without calling Relay, so a healthy result does not establish live-feed access. Set watch paths to `server.mjs`, `src/activity.js`, `package.json`, `Dockerfile`, `.dockerignore`, and `LICENSE` to avoid rebuilding the API for frontend-only changes. Generate a public Railway domain and confirm `/healthz` responds, then check `/api/activity` returns the expected live or demo status.
+
+These service settings will be configured through Railway when connected. There is no `railway.json`: Railway's [current config-as-code reference](https://docs.railway.com/reference/config-as-code) deprecates that format for new services.
+
+### 2. Publish the GitHub Pages frontend
+
+In this repository's **Settings → Pages**, choose **GitHub Actions** as the publishing source. Under **Settings → Secrets and variables → Actions → Variables**, add the repository variable:
+
+```text
+VITE_API_URL=https://your-service.up.railway.app/api/activity
+```
+
+Use the complete public activity URL, including `/api/activity`. This URL is intentionally visible in the browser. **Do not add the Relay API key as a `VITE_` variable or pass it to the Pages build.** The workflow does not need a Relay GitHub Secret.
+
+Push to `main` or manually run **Deploy city to GitHub Pages**. The [Pages workflow](.github/workflows/pages.yml) runs the tests, builds for the repository subpath, uploads only `dist/`, and deploys it. The site address is `https://waren.build/relay-protocol-city/`. See GitHub's [custom Pages workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+
+If `VITE_API_URL` is not configured, the Pages build runs a clearly labeled demo without API polling. Once the Railway URL exists, set the variable and rerun the workflow. Changing a GitHub variable requires a new frontend build; changing the private key in Railway does not.
+
+To preview the Pages build locally:
+
+```sh
+npm run build:pages
+npm run preview:pages -- --host 127.0.0.1
+```
+
+Open the printed `/relay-protocol-city/` preview address. To test against a deployed API, set the public `VITE_API_URL` while building and add the preview origin to Railway's `ALLOWED_ORIGINS` temporarily.
 
 ## Contributing and licenses
 

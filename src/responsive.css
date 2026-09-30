@@ -1,0 +1,431 @@
+@media (min-width: 1650px) {
+  .intro {
+    top: 45px;
+    left: 48px;
+  }
+  .activity-panel {
+    left: 44px;
+    bottom: 36px;
+    width: 310px;
+  }
+  .scene-topbar {
+    right: 42px;
+    top: 42px;
+  }
+}
+@media (max-width: 1100px) {
+  .site-header {
+    padding: 0 25px;
+  }
+  .open-source {
+    display: none;
+  }
+  .site-header nav {
+    margin: 0;
+    gap: 22px;
+  }
+  .intro {
+    left: 26px;
+    top: 26px;
+  }
+  .intro h1 {
+    font-size: 34px;
+  }
+  .scene-topbar {
+    right: 24px;
+    top: 26px;
+  }
+  .activity-panel {
+    left: 22px;
+    width: 258px;
+    bottom: 22px;
+  }
+  .camera-hint {
+    left: 51%;
+    font-size: 9px;
+  }
+  .city-footer {
+    padding: 0 26px;
+    gap: 24px;
+  }
+  .footer-right > span {
+    display: none;
+  }
+  .footer-title {
+    font-size: 7px;
+  }
+  .scene-stat {
+    gap: 6px;
+  }
+  .scene-stat strong {
+    font-size: 17px;
+  }
+  .scene-stat > span {
+    font-size: 9px;
+  }
+  .scene-controls {
+    right: 24px;
+    bottom: 20px;
+  }
+}
+@media (max-width: 760px) {
+  .site-header {
+    height: 72px;
+    padding: 0 20px;
+  }
+  .brand {
+    font-size: 24px;
+  }
+  .brand-mark {
+    transform: scale(0.85) skewY(-9deg);
+    width: 30px;
+  }
+  .brand small {
+    font-size: 6px;
+    letter-spacing: 1.6px;
+  }
+  .site-header nav {
+    display: none;
+  }
+  .relay-link {
+    min-height: 44px;
+    font-size: 11px;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  #city-app {
+    height: calc(100dvh - 138px);
+    min-height: 320px;
+  }
+  .intro {
+    top: 25px;
+    left: 22px;
+  }
+  .intro h1 {
+    font-size: 32px;
+    letter-spacing: -1.2px;
+    margin-bottom: 10px;
+  }
+  .intro p {
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  .mode-line {
+    margin-top: 12px;
+    font-size: 9px;
+  }
+  .scene-topbar {
+    top: 26px;
+    right: 18px;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .chain-filter {
+    height: 44px;
+    padding: 0 9px;
+    gap: 5px;
+  }
+  .chain-filter select {
+    font-size: 10px;
+    max-width: 100px;
+  }
+  .chain-filter .icon {
+    width: 14px;
+    height: 14px;
+  }
+  .whale-button {
+    height: 44px;
+    font-size: 10px;
+    padding: 0 10px;
+  }
+  .whale-button .icon {
+    width: 14px;
+    height: 14px;
+  }
+  .activity-panel {
+    width: calc(100% - 40px);
+    left: 20px;
+    bottom: 79px;
+    max-width: 350px;
+  }
+  .activity-heading {
+    height: 44px;
+    cursor: pointer;
+  }
+  .activity-heading:hover {
+    background: var(--hover);
+  }
+  .activity-heading strong {
+    font-size: 11px;
+  }
+  .activity-columns {
+    display: none;
+  }
+  .activity-panel ol {
+    padding-top: 7px;
+  }
+  .activity-panel li:nth-child(n + 4) {
+    display: none;
+  }
+  .trip-row {
+    padding: 7px 8px;
+  }
+  .feed-note {
+    padding: 9px 16px;
+    font-size: 10px;
+  }
+  .camera-hint {
+    bottom: 27px;
+    left: 20px;
+    transform: none;
+    font-size: 8px;
+    max-width: 150px;
+  }
+  .camera-hint > span {
+    line-height: 1.6;
+  }
+  .camera-hint .icon {
+    display: none;
+  }
+  .scene-controls {
+    bottom: 15px;
+    right: 19px;
+    padding: 3px;
+  }
+  .scene-controls button {
+    width: 44px;
+    height: 44px;
+  }
+  .panel-close {
+    width: 44px;
+    height: 44px;
+  }
+  .scene-controls .icon {
+    width: 16px;
+    height: 16px;
+  }
+  .city-footer {
+    height: 66px;
+    padding: 0 20px;
+    gap: 22px;
+    justify-content: space-between;
+  }
+  .footer-title {
+    display: none;
+  }
+  .scene-stat {
+    display: block;
+  }
+  .scene-stat strong {
+    display: block;
+    font-size: 17px;
+  }
+  .scene-stat > span {
+    display: block;
+    font-size: 8px;
+    margin-top: 2px;
+  }
+  .footer-right {
+    margin: 0;
+  }
+  .footer-right button {
+    font-size: 9px;
+    max-width: 58px;
+    gap: 5px;
+    line-height: 1.5;
+    text-align: left;
+  }
+  .footer-right .icon {
+    width: 14px;
+  }
+  .chain-label {
+    font-size: 9px;
+    padding: 5px 7px 5px 5px;
+    gap: 5px;
+  }
+  .chain-symbol {
+    width: 18px;
+    height: 18px;
+    font-size: 7px;
+  }
+  .chain-symbol svg {
+    width: 12px;
+    height: 12px;
+  }
+  .trip-inspector,
+  .info-panel {
+    top: auto;
+    bottom: 79px;
+    right: 20px;
+    left: 20px;
+    width: auto;
+    max-height: calc(100% - 115px);
+    padding: 22px;
+  }
+  .trip-inspector {
+    max-width: 350px;
+    left: auto;
+    width: calc(100% - 40px);
+  }
+  .info-panel h2 {
+    font-size: 23px;
+  }
+  .tier-guide {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 20px;
+  }
+  .tier-guide > div {
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+  .tier-guide > div span:last-child {
+    margin-left: 25px;
+    width: 100%;
+    margin-top: -5px;
+  }
+  .toast {
+    top: auto;
+    bottom: 210px;
+    width: max-content;
+  }
+  .scene-error {
+    left: 20px;
+    right: 20px;
+    transform: none;
+    top: 34%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *:before,
+  *:after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .loading-cube {
+    transform: none;
+  }
+}
+
+@media (max-height: 620px) {
+  body {
+    overflow-y: auto;
+  }
+  #city-app {
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 430px) {
+  .camera-hint {
+    display: none;
+  }
+  .intro {
+    max-width: calc(100% - 150px);
+  }
+  .intro h1 {
+    font-size: 26px;
+  }
+  .intro p {
+    max-width: 175px;
+  }
+}
+
+@media (min-width: 1650px) {
+  .simulation-controls {
+    top: 96px;
+    right: 42px;
+  }
+}
+@media (max-width: 1100px) {
+  .simulation-controls {
+    top: 80px;
+    right: 24px;
+  }
+  .city-operations {
+    right: 24px;
+    left: auto;
+    bottom: 82px;
+    transform: none;
+    max-width: 260px;
+  }
+  #city-app:has(.city-operations:not([hidden])) .camera-hint {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .brand-logo {
+    width: 76px;
+  }
+  .simulation-controls {
+    top: 184px;
+    right: 18px;
+    max-width: calc(100% - 36px);
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  .simulation-controls label {
+    gap: 5px;
+  }
+  .simulation-controls select {
+    min-height: 44px;
+    max-width: 140px;
+    font-size: 10px;
+  }
+  .city-operations {
+    left: 20px;
+    right: 20px;
+    bottom: 79px;
+    width: auto;
+    max-width: none;
+    padding: 9px 12px;
+    gap: 4px;
+    font-size: 10px;
+  }
+  .city-operations > div,
+  .city-operations > p {
+    gap: 4px 9px;
+  }
+  .city-operations button {
+    min-height: 44px;
+    padding: 7px 10px;
+  }
+  #city-app:has(.city-operations:not([hidden])) .activity-panel {
+    bottom: 195px;
+  }
+}
+@media (max-width: 760px) {
+  body {
+    overflow-y: auto;
+  }
+  #city-app:has(.city-operations:not([hidden])) {
+    min-height: 520px;
+  }
+  #city-app:has(.city-operations:not([hidden])) .activity-panel {
+    max-height: calc(100% - 445px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+}
+
+@media (min-width: 761px) and (max-height: 800px) {
+  .intro {
+    top: 24px;
+  }
+  .intro h1 {
+    font-size: 32px;
+    line-height: 1.08;
+    margin-bottom: 10px;
+  }
+  .intro p {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .mode-line {
+    margin-top: 12px;
+  }
+  .camera-hint {
+    display: none;
+  }
+}

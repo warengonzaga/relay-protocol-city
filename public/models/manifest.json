@@ -1,0 +1,1000 @@
+{
+  "models": {
+    "character-a": {
+      "url": "/models/blocky-characters/character-a.glb",
+      "size": [
+        1.6,
+        2.7,
+        0.8
+      ],
+      "min": [
+        -0.8,
+        0.0,
+        -0.4
+      ],
+      "max": [
+        0.8,
+        2.7,
+        0.4
+      ],
+      "forward": "+Z",
+      "animations": [
+        "static",
+        "idle",
+        "walk",
+        "sprint",
+        "sit",
+        "drive",
+        "die",
+        "pick-up",
+        "emote-yes",
+        "emote-no",
+        "holding-right",
+        "holding-left",
+        "holding-both",
+        "holding-right-shoot",
+        "holding-left-shoot",
+        "holding-both-shoot",
+        "attack-melee-right",
+        "attack-melee-left",
+        "attack-kick-right",
+        "attack-kick-left",
+        "interact-right",
+        "interact-left",
+        "wheelchair-sit",
+        "wheelchair-move-forward",
+        "wheelchair-move-back",
+        "wheelchair-move-left",
+        "wheelchair-move-right"
+      ],
+      "bytes": 113596,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/blocky-characters"
+    },
+    "character-b": {
+      "url": "/models/blocky-characters/character-b.glb",
+      "size": [
+        1.6,
+        2.7,
+        0.8
+      ],
+      "min": [
+        -0.8,
+        0.0,
+        -0.4
+      ],
+      "max": [
+        0.8,
+        2.7,
+        0.4
+      ],
+      "forward": "+Z",
+      "animations": [
+        "static",
+        "idle",
+        "walk",
+        "sprint",
+        "sit",
+        "drive",
+        "die",
+        "pick-up",
+        "emote-yes",
+        "emote-no",
+        "holding-right",
+        "holding-left",
+        "holding-both",
+        "holding-right-shoot",
+        "holding-left-shoot",
+        "holding-both-shoot",
+        "attack-melee-right",
+        "attack-melee-left",
+        "attack-kick-right",
+        "attack-kick-left",
+        "interact-right",
+        "interact-left",
+        "wheelchair-sit",
+        "wheelchair-move-forward",
+        "wheelchair-move-back",
+        "wheelchair-move-left",
+        "wheelchair-move-right"
+      ],
+      "bytes": 113596,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/blocky-characters"
+    },
+    "character-c": {
+      "url": "/models/blocky-characters/character-c.glb",
+      "size": [
+        1.6,
+        2.7,
+        0.8
+      ],
+      "min": [
+        -0.8,
+        0.0,
+        -0.4
+      ],
+      "max": [
+        0.8,
+        2.7,
+        0.4
+      ],
+      "forward": "+Z",
+      "animations": [
+        "static",
+        "idle",
+        "walk",
+        "sprint",
+        "sit",
+        "drive",
+        "die",
+        "pick-up",
+        "emote-yes",
+        "emote-no",
+        "holding-right",
+        "holding-left",
+        "holding-both",
+        "holding-right-shoot",
+        "holding-left-shoot",
+        "holding-both-shoot",
+        "attack-melee-right",
+        "attack-melee-left",
+        "attack-kick-right",
+        "attack-kick-left",
+        "interact-right",
+        "interact-left",
+        "wheelchair-sit",
+        "wheelchair-move-forward",
+        "wheelchair-move-back",
+        "wheelchair-move-left",
+        "wheelchair-move-right"
+      ],
+      "bytes": 113580,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/blocky-characters"
+    },
+    "delivery": {
+      "url": "/models/car-kit/delivery.glb",
+      "size": [
+        1.5,
+        1.65,
+        3.25
+      ],
+      "min": [
+        -0.75,
+        -0.0,
+        -1.65
+      ],
+      "max": [
+        0.75,
+        1.65,
+        1.6
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 240264,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/car-kit"
+    },
+    "sedan": {
+      "url": "/models/car-kit/sedan.glb",
+      "size": [
+        1.5,
+        1.3,
+        2.55
+      ],
+      "min": [
+        -0.75,
+        -0.0,
+        -1.3
+      ],
+      "max": [
+        0.75,
+        1.3,
+        1.25
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 172216,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/car-kit"
+    },
+    "taxi": {
+      "url": "/models/car-kit/taxi.glb",
+      "size": [
+        1.5,
+        1.5,
+        2.75
+      ],
+      "min": [
+        -0.75,
+        -0.0,
+        -1.4
+      ],
+      "max": [
+        0.75,
+        1.5,
+        1.35
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 175608,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/car-kit"
+    },
+    "truck": {
+      "url": "/models/car-kit/truck.glb",
+      "size": [
+        1.5,
+        1.3,
+        2.95
+      ],
+      "min": [
+        -0.75,
+        -0.0,
+        -1.5
+      ],
+      "max": [
+        0.75,
+        1.3,
+        1.45
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 176360,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/car-kit"
+    },
+    "van": {
+      "url": "/models/car-kit/van.glb",
+      "size": [
+        1.5,
+        1.35,
+        2.75
+      ],
+      "min": [
+        -0.75,
+        -0.0,
+        -1.4
+      ],
+      "max": [
+        0.75,
+        1.35,
+        1.35
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 175664,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/car-kit"
+    },
+    "building-a": {
+      "url": "/models/city-kit-commercial/building-a.glb",
+      "size": [
+        0.88359,
+        1.293,
+        0.94
+      ],
+      "min": [
+        -0.44179,
+        0.0,
+        -0.47
+      ],
+      "max": [
+        0.44179,
+        1.293,
+        0.47
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 108936,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "building-b": {
+      "url": "/models/city-kit-commercial/building-b.glb",
+      "size": [
+        0.97,
+        1.293,
+        0.94
+      ],
+      "min": [
+        -0.485,
+        0.0,
+        -0.47
+      ],
+      "max": [
+        0.485,
+        1.293,
+        0.47
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 106408,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "building-c": {
+      "url": "/models/city-kit-commercial/building-c.glb",
+      "size": [
+        0.88359,
+        0.893,
+        1.09
+      ],
+      "min": [
+        -0.44179,
+        0.0,
+        -0.545
+      ],
+      "max": [
+        0.44179,
+        0.893,
+        0.545
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 102788,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "building-d": {
+      "url": "/models/city-kit-commercial/building-d.glb",
+      "size": [
+        0.84,
+        1.293,
+        0.9
+      ],
+      "min": [
+        -0.42,
+        0.0,
+        -0.45
+      ],
+      "max": [
+        0.42,
+        1.293,
+        0.45
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 95160,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "building-e": {
+      "url": "/models/city-kit-commercial/building-e.glb",
+      "size": [
+        1.64,
+        0.893,
+        1.00789
+      ],
+      "min": [
+        -0.82,
+        0.0,
+        -0.50395
+      ],
+      "max": [
+        0.82,
+        0.893,
+        0.50395
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 128208,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "building-f": {
+      "url": "/models/city-kit-commercial/building-f.glb",
+      "size": [
+        0.84,
+        1.693,
+        1.03
+      ],
+      "min": [
+        -0.42,
+        0.0,
+        -0.515
+      ],
+      "max": [
+        0.42,
+        1.693,
+        0.515
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 148952,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "building-g": {
+      "url": "/models/city-kit-commercial/building-g.glb",
+      "size": [
+        0.97,
+        1.693,
+        0.922
+      ],
+      "min": [
+        -0.485,
+        0.0,
+        -0.461
+      ],
+      "max": [
+        0.485,
+        1.693,
+        0.461
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 166356,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "building-h": {
+      "url": "/models/city-kit-commercial/building-h.glb",
+      "size": [
+        0.88359,
+        1.293,
+        1.00789
+      ],
+      "min": [
+        -0.44179,
+        0.0,
+        -0.50395
+      ],
+      "max": [
+        0.44179,
+        1.293,
+        0.50395
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 127384,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "building-i": {
+      "url": "/models/city-kit-commercial/building-i.glb",
+      "size": [
+        1.24,
+        1.68,
+        1.302
+      ],
+      "min": [
+        -0.62,
+        0.0,
+        -0.651
+      ],
+      "max": [
+        0.62,
+        1.68,
+        0.651
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 209728,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "building-j": {
+      "url": "/models/city-kit-commercial/building-j.glb",
+      "size": [
+        2.08359,
+        1.693,
+        1.34
+      ],
+      "min": [
+        -1.04179,
+        0.0,
+        -0.67
+      ],
+      "max": [
+        1.04179,
+        1.693,
+        0.67
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 440652,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "building-skyscraper-a": {
+      "url": "/models/city-kit-commercial/building-skyscraper-a.glb",
+      "size": [
+        1.36,
+        2.88,
+        1.36
+      ],
+      "min": [
+        -0.68,
+        0.0,
+        -0.68
+      ],
+      "max": [
+        0.68,
+        2.88,
+        0.68
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 111336,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "building-skyscraper-b": {
+      "url": "/models/city-kit-commercial/building-skyscraper-b.glb",
+      "size": [
+        1.36,
+        4.48,
+        1.36
+      ],
+      "min": [
+        -0.68,
+        0.0,
+        -0.68
+      ],
+      "max": [
+        0.68,
+        4.48,
+        0.68
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 138480,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "building-skyscraper-c": {
+      "url": "/models/city-kit-commercial/building-skyscraper-c.glb",
+      "size": [
+        1.28,
+        4.08,
+        1.38789
+      ],
+      "min": [
+        -0.64,
+        0.0,
+        -0.69395
+      ],
+      "max": [
+        0.64,
+        4.08,
+        0.69395
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 149524,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "detail-parasol-a": {
+      "url": "/models/city-kit-commercial/detail-parasol-a.glb",
+      "size": [
+        0.34641,
+        0.45,
+        0.4
+      ],
+      "min": [
+        -0.17321,
+        0.0,
+        -0.2
+      ],
+      "max": [
+        0.17321,
+        0.45,
+        0.2
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 10320,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-commercial"
+    },
+    "light-curved-double": {
+      "url": "/models/city-kit-roads/light-curved-double.glb",
+      "size": [
+        0.05,
+        0.675,
+        0.4
+      ],
+      "min": [
+        -0.025,
+        0.0,
+        -0.2
+      ],
+      "max": [
+        0.025,
+        0.675,
+        0.2
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 14208,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-roads"
+    },
+    "light-curved": {
+      "url": "/models/city-kit-roads/light-curved.glb",
+      "size": [
+        0.05,
+        0.675,
+        0.225
+      ],
+      "min": [
+        -0.025,
+        0.0,
+        -0.2
+      ],
+      "max": [
+        0.025,
+        0.675,
+        0.025
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 9492,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-roads"
+    },
+    "traffic-light": {
+      "url": "/models/city-kit-roads/traffic-light.glb",
+      "size": [
+        0.1176,
+        0.515,
+        0.09
+      ],
+      "min": [
+        -0.0726,
+        0.0,
+        -0.045
+      ],
+      "max": [
+        0.045,
+        0.515,
+        0.045
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 20344,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-roads"
+    },
+    "building-type-a": {
+      "url": "/models/city-kit-suburban/building-type-a.glb",
+      "size": [
+        1.3,
+        0.83354,
+        1.02814
+      ],
+      "min": [
+        -0.65,
+        0.0,
+        -0.51407
+      ],
+      "max": [
+        0.65,
+        0.83354,
+        0.51407
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 98604,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-suburban"
+    },
+    "building-type-b": {
+      "url": "/models/city-kit-suburban/building-type-b.glb",
+      "size": [
+        1.828,
+        1.1375,
+        1.14
+      ],
+      "min": [
+        -0.914,
+        0.0,
+        -0.57
+      ],
+      "max": [
+        0.914,
+        1.1375,
+        0.57
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 146720,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-suburban"
+    },
+    "building-type-c": {
+      "url": "/models/city-kit-suburban/building-type-c.glb",
+      "size": [
+        1.28638,
+        1.03354,
+        1.02814
+      ],
+      "min": [
+        -0.64319,
+        0.0,
+        -0.51407
+      ],
+      "max": [
+        0.64319,
+        1.03354,
+        0.51407
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 99592,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-suburban"
+    },
+    "tree-large": {
+      "url": "/models/city-kit-suburban/tree-large.glb",
+      "size": [
+        0.21044,
+        0.767,
+        0.243
+      ],
+      "min": [
+        -0.10522,
+        0.0,
+        -0.1215
+      ],
+      "max": [
+        0.10522,
+        0.767,
+        0.1215
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 5812,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-suburban"
+    },
+    "tree-small": {
+      "url": "/models/city-kit-suburban/tree-small.glb",
+      "size": [
+        0.21044,
+        0.567,
+        0.243
+      ],
+      "min": [
+        -0.10522,
+        0.0,
+        -0.1215
+      ],
+      "max": [
+        0.10522,
+        0.567,
+        0.1215
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 5812,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/city-kit-suburban"
+    },
+    "airplane": {
+      "url": "/models/poly-google/airplane.glb",
+      "size": [
+        1566.55566,
+        580.71591,
+        1675.78467
+      ],
+      "min": [
+        -781.633,
+        -216.19113,
+        -982.84338
+      ],
+      "max": [
+        784.92267,
+        364.52478,
+        692.94128
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 236520,
+      "license": "CC-BY-3.0",
+      "creator": "Poly by Google",
+      "source": "https://poly.pizza/m/8ciDd9k8wha"
+    },
+    "bus": {
+      "url": "/models/poly-google/bus.glb",
+      "size": [
+        50.06064,
+        48.80706,
+        157.46114
+      ],
+      "min": [
+        -25.03032,
+        -3e-05,
+        -78.73057
+      ],
+      "max": [
+        25.03032,
+        48.80703,
+        78.73057
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 46072,
+      "license": "CC-BY-3.0",
+      "creator": "Poly by Google",
+      "source": "https://poly.pizza/m/4CPpvEmrMoF"
+    },
+    "railroad-straight": {
+      "url": "/models/train-kit/railroad-straight.glb",
+      "size": [
+        1.0,
+        0.1,
+        4.0
+      ],
+      "min": [
+        -0.5,
+        -1.0,
+        0.0
+      ],
+      "max": [
+        0.5,
+        -0.9,
+        4.0
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 34736,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/train-kit"
+    },
+    "train-carriage-box": {
+      "url": "/models/train-kit/train-carriage-box.glb",
+      "size": [
+        1.20002,
+        1.2977,
+        2.7
+      ],
+      "min": [
+        -0.60001,
+        -0.0,
+        -1.35
+      ],
+      "max": [
+        0.60001,
+        1.2977,
+        1.35
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 98768,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/train-kit"
+    },
+    "train-electric-city-a": {
+      "url": "/models/train-kit/train-electric-city-a.glb",
+      "size": [
+        1.1,
+        1.6828,
+        2.4
+      ],
+      "min": [
+        -0.55,
+        -0.0,
+        -1.2
+      ],
+      "max": [
+        0.55,
+        1.6828,
+        1.2
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 104168,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/train-kit"
+    },
+    "train-electric-city-b": {
+      "url": "/models/train-kit/train-electric-city-b.glb",
+      "size": [
+        1.3,
+        2.21919,
+        2.7
+      ],
+      "min": [
+        -0.65,
+        -0.0,
+        -1.35
+      ],
+      "max": [
+        0.65,
+        2.21919,
+        1.35
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 135720,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/train-kit"
+    },
+    "train-electric-city-c": {
+      "url": "/models/train-kit/train-electric-city-c.glb",
+      "size": [
+        1.1,
+        1.6828,
+        2.7
+      ],
+      "min": [
+        -0.55,
+        -0.0,
+        -1.35
+      ],
+      "max": [
+        0.55,
+        1.6828,
+        1.35
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 121344,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/train-kit"
+    },
+    "train-locomotive-a": {
+      "url": "/models/train-kit/train-locomotive-a.glb",
+      "size": [
+        1.42933,
+        1.6595,
+        2.6
+      ],
+      "min": [
+        -0.71467,
+        -0.0,
+        -1.3
+      ],
+      "max": [
+        0.71467,
+        1.6595,
+        1.3
+      ],
+      "forward": "+Z",
+      "animations": [],
+      "bytes": 154620,
+      "license": "CC0-1.0",
+      "creator": "Kenney",
+      "source": "https://kenney.nl/assets/train-kit"
+    }
+  }
+}

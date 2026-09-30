@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#161616" />
+    <meta
+      name="description"
+      content="A little city powered by crosschain activity. Watch Relay transfers come to life as pedestrians, cars, trains, and whale-sized airplanes."
+    />
+    <title>Relay City — Every transfer has a destination.</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <a class="skip-link" href="#activity-list">Skip to transfer activity</a>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Relay City home"
+        ><img class="brand-logo" src="/relay-wordmark.svg" alt="Relay" /><span
+          class="brand-city"
+          >City</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <button class="nav-link active" id="city-tab">Explore the city</button
+        ><button class="nav-link" id="how-button">How it works</button>
+      </nav>
+      <div class="header-end">
+        <span class="open-source">Built in the open</span
+        ><a
+          class="relay-link"
+          href="https://relay.link"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Visit Relay <span data-icon="arrowUpRight"></span
+        ></a>
+      </div>
+    </header>
+    <main id="city-app">
+      <div
+        id="world"
+        role="img"
+        aria-label="Interactive miniature city. Chains are districts. Transfers travel between houses or app buildings. Use the accessible activity list to inspect transfers."
+      ></div>
+      <div id="chain-labels" aria-hidden="true"></div>
+      <section class="intro" aria-labelledby="city-title">
+        <h1 id="city-title">Every chain.<br />One living city.</h1>
+        <p>
+          Twelve districts. Countless journeys.<br />Watch the crosschain world
+          move.
+        </p>
+        <div class="mode-line">
+          <span class="status-dot"></span
+          ><span id="mode-label">Preparing the city</span
+          ><button
+            id="data-info"
+            class="text-icon"
+            aria-label="About the activity data"
+          >
+            <span data-icon="info"></span>
+          </button>
+        </div>
+      </section>
+      <div class="scene-topbar">
+        <label class="chain-filter source-filter"
+          ><select id="data-view" aria-label="Choose activity source">
+            <option value="live">Relay activity</option>
+            <option value="demo">Demo city</option></select
+          ><span data-icon="chevronDown"></span
+        ></label>
+        <label class="chain-filter"
+          ><span data-icon="globe"></span
+          ><select id="chain-filter" aria-label="Filter activity by chain">
+            <option value="all">All chains</option></select
+          ><span data-icon="chevronDown"></span
+        ></label>
+        <button class="whale-button" id="whale-button">
+          <span data-icon="plane"></span><span>Whale flyover</span>
+        </button>
+      </div>
+      <div class="simulation-controls" id="simulation-controls" hidden>
+        <label for="scenario">Try a journey</label
+        ><select id="scenario" aria-label="Choose a simulated journey">
+          <option value="all">City life</option>
+          <option value="same-chain">Same-chain sprint</option>
+          <option value="opensea">OpenSea: BNB to Base</option>
+          <option value="pending">Waiting at the toll</option>
+          <option value="failed">Failed: return home</option>
+          <option value="blocked">Blocked: police escort</option>
+          <option value="trains">Two-track train queue</option>
+          <option value="airplanes">Sky routes</option>
+        </select>
+      </div>
+      <section class="activity-panel" aria-labelledby="activity-heading">
+        <button
+          class="activity-heading"
+          id="activity-toggle"
+          aria-expanded="true"
+        >
+          <span
+            ><span class="activity-signal"></span
+            ><strong id="activity-heading">City activity</strong></span
+          ><span class="small-label" id="feed-label">PREVIEW</span>
+        </button>
+        <div id="activity-body">
+          <div class="activity-columns">
+            <span>Latest trips</span><span>Transfer value</span>
+          </div>
+          <ol id="activity-list" tabindex="-1"></ol>
+          <div class="feed-note" id="feed-note">
+            Loading a little world of movement…
+          </div>
+        </div>
+      </section>
+      <section
+        class="trip-inspector"
+        id="trip-inspector"
+        hidden
+        aria-labelledby="trip-title"
+      >
+        <button
+          class="panel-close"
+          id="close-inspector"
+          aria-label="Close trip details"
+        >
+          <span data-icon="x"></span>
+        </button>
+        <div id="trip-content"></div>
+      </section>
+      <aside
+        class="info-panel"
+        id="info-panel"
+        hidden
+        aria-labelledby="info-title"
+      >
+        <button class="panel-close" id="close-info" aria-label="Close guide">
+          <span data-icon="x"></span>
+        </button>
+        <h2 id="info-title">A city that moves with Relay.</h2>
+        <p>
+          Chains are districts. Relay app trips move house to house; reported
+          integrators move between their buildings. One traveler is one request,
+          and its ride is chosen by its USD value.
+        </p>
+        <div class="tier-guide" id="tier-guide"></div>
+        <p class="data-explanation" id="data-explanation">
+          This preview uses illustrative transactions. Connect a verified Relay
+          feed to watch real activity.
+        </p>
+        <p class="fine-print">
+          Toll gates represent the handoff from origin to fill. Pending trips
+          wait; failed trips return; BLOCKED and BLOCKED_WALLET outcomes get a
+          playful police escort. These are stage illustrations, not exact fund
+          locations. Completed requests replay their journey.
+        </p>
+        <p class="fine-print">
+          Pedestrians use sidewalks. Same-chain trips run a local loop. Other
+          walkers run when measured or estimated duration is 15 seconds or less.
+          Animation speed is scaled for viewing, not a settlement timer.
+        </p>
+        <p class="fine-print">
+          Trains enter through the yard, stop at both chain stations, and return
+          to the tunnel. Each direction carries one train; the rest queue.
+        </p>
+        <details>
+          <summary>Air routes by compass bearing</summary>
+          <div id="flight-bearings"></div>
+        </details>
+        <a
+          href="https://docs.relay.link/references/api/get-requests"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Explore the Relay API <span data-icon="arrowUpRight"></span
+        ></a>
+      </aside>
+      <div class="city-operations" aria-label="City traffic status">
+        <div>
+          <span id="rail-status">Rail 1: clear · Rail 2: clear</span
+          ><span id="queue-status">0 queued</span>
+        </div>
+        <div>
+          <span id="gate-status">0 waiting at tolls</span
+          ><button id="release-gates" hidden>Release demo gates</button>
+        </div>
+      </div>
+      <div class="camera-hint">
+        <span data-icon="orbit"></span
+        ><span>Drag to explore <i>·</i> Scroll to zoom</span>
+      </div>
+      <div class="scene-controls" role="group" aria-label="City controls">
+        <button
+          id="pause-button"
+          aria-label="Pause traffic"
+          aria-pressed="false"
+          title="Pause traffic"
+        >
+          <span data-icon="pause"></span>
+        </button>
+        <span class="control-separator"></span>
+        <button id="zoom-in" aria-label="Zoom in" title="Zoom in">
+          <span data-icon="plus"></span>
+        </button>
+        <button id="zoom-out" aria-label="Zoom out" title="Zoom out">
+          <span data-icon="minus"></span>
+        </button>
+        <button
+          id="reset-camera"
+          aria-label="Reset city view"
+          title="Reset city view"
+        >
+          <span data-icon="scan"></span>
+        </button>
+      </div>
+      <div class="loading-scene" id="loading-scene">
+        <span class="loading-cube"></span
+        ><span>Building your little city…</span>
+      </div>
+      <div class="scene-error" id="scene-error" hidden>
+        <h2>The city needs a little more power.</h2>
+        <p>
+          Enable hardware acceleration or try a browser with WebGL 2 support.
+          You can still explore the transfer activity.
+        </p>
+      </div>
+      <div class="toast" id="toast" role="status" hidden></div>
+    </main>
+    <footer class="city-footer">
+      <div class="footer-title">
+        <span class="footer-live-dot"></span
+        ><span id="footer-mode">ILLUSTRATIVE CITY</span>
+      </div>
+      <div class="scene-stat">
+        <strong id="trip-count">—</strong><span>trips in sample</span>
+      </div>
+      <div class="scene-stat">
+        <strong id="scene-volume">—</strong
+        ><span id="volume-label">demo value</span>
+      </div>
+      <div class="scene-stat">
+        <strong id="chain-count">—</strong><span>chains in sample</span>
+      </div>
+      <div class="footer-right">
+        <span>One traveler. One transfer.</span
+        ><button id="legend-button">
+          Meet the traffic <span data-icon="arrowRight"></span>
+        </button>
+      </div>
+    </footer>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

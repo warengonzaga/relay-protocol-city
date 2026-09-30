@@ -1,0 +1,186 @@
+.brand-logo {
+  display: block;
+  width: 76px;
+  height: auto;
+  flex-shrink: 0;
+}
+.simulation-controls {
+  position: absolute;
+  right: 32px;
+  top: 86px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  background: var(--paper);
+  border-radius: 9px;
+  box-shadow: var(--shadow);
+  font-size: 11px;
+  color: var(--muted);
+}
+.simulation-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.simulation-controls select {
+  min-height: 30px;
+  max-width: 165px;
+  border: 0;
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 5px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.city-operations {
+  position: absolute;
+  bottom: 27px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: grid;
+  gap: 7px;
+  width: max-content;
+  max-width: 300px;
+  padding: 12px 15px;
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  font-size: 11px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.city-operations > div,
+.city-operations > p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 10px;
+  margin: 0;
+}
+.city-operations small {
+  color: var(--muted);
+  font-size: 10px;
+}
+.city-operations button {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent-surface);
+  color: #dbdeff;
+  font-size: 11px;
+  font-weight: 600;
+}
+.city-operations button:hover {
+  background: #2f0093;
+}
+.stage-chip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  gap: 5px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--surface);
+}
+.stage-chip[data-stage="origin"],
+.stage-chip[data-stage="fill"] {
+  color: #dbdeff;
+  background: var(--accent-surface);
+}
+.stage-chip[data-stage="gate"],
+.stage-chip[data-stage="pending"],
+.stage-chip[data-stage="blocked"] {
+  color: var(--warning);
+  background: var(--warning-surface);
+}
+.stage-chip[data-stage="complete"] {
+  color: var(--success);
+  background: #172c1c;
+}
+.stage-chip[data-stage="failed"] {
+  color: var(--danger);
+  background: #321e1b;
+}
+.journey-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  gap: 8px;
+  padding: 0;
+  margin: 20px 0;
+}
+.journey-steps li {
+  min-width: 0;
+  padding-top: 9px;
+  border-top: 2px solid var(--line);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.journey-steps li strong,
+.journey-steps li span {
+  display: block;
+}
+.journey-steps li strong {
+  font-size: 11px;
+  color: var(--ink);
+}
+.journey-steps li.active,
+.journey-steps li[data-state="active"],
+.journey-steps li[aria-current="step"] {
+  border-color: var(--accent-text);
+  color: #dbdeff;
+}
+.journey-steps li.complete,
+.journey-steps li[data-state="complete"] {
+  border-color: var(--success);
+  color: var(--success);
+}
+.inspector-meta {
+  display: grid;
+  gap: 0;
+  margin: 14px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.inspector-meta > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+.inspector-meta dt,
+.inspector-meta .meta-label {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.inspector-meta dd {
+  min-width: 0;
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.loading-scene {
+  padding: 24px;
+}
+.loading-scene > span:last-child {
+  max-width: 28ch;
+  line-height: 1.6;
+}
+/* The operational readout now owns the camera hint's former space. */
+#city-app:has(.city-operations:not([hidden])) .camera-hint {
+  bottom: 104px;
+}

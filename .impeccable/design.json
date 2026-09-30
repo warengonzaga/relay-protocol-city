@@ -1,0 +1,690 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-30T11:03:49Z",
+  "title": "Design System: Relay City",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(26% 0.0000 0.0)",
+          "oklch(38% 0.0000 0.0)",
+          "oklch(49% 0.0000 0.0)",
+          "oklch(61% 0.0000 0.0)",
+          "oklch(72% 0.0000 0.0)",
+          "oklch(84% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(26% 0.0000 0.0)",
+          "oklch(38% 0.0000 0.0)",
+          "oklch(49% 0.0000 0.0)",
+          "oklch(61% 0.0000 0.0)",
+          "oklch(72% 0.0000 0.0)",
+          "oklch(84% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(26% 0.0000 0.0)",
+          "oklch(38% 0.0000 0.0)",
+          "oklch(49% 0.0000 0.0)",
+          "oklch(61% 0.0000 0.0)",
+          "oklch(72% 0.0000 0.0)",
+          "oklch(84% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Hover",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(26% 0.0000 0.0)",
+          "oklch(38% 0.0000 0.0)",
+          "oklch(49% 0.0000 0.0)",
+          "oklch(61% 0.0000 0.0)",
+          "oklch(72% 0.0000 0.0)",
+          "oklch(84% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(26% 0.0000 0.0)",
+          "oklch(38% 0.0000 0.0)",
+          "oklch(49% 0.0000 0.0)",
+          "oklch(61% 0.0000 0.0)",
+          "oklch(72% 0.0000 0.0)",
+          "oklch(84% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(26% 0.0000 0.0)",
+          "oklch(38% 0.0000 0.0)",
+          "oklch(49% 0.0000 0.0)",
+          "oklch(61% 0.0000 0.0)",
+          "oklch(72% 0.0000 0.0)",
+          "oklch(84% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "purple": {
+        "role": "primary",
+        "displayName": "Purple",
+        "tonalRamp": [
+          "oklch(15% 0.2384 281.3)",
+          "oklch(26% 0.2384 281.3)",
+          "oklch(38% 0.2384 281.3)",
+          "oklch(49% 0.2384 281.3)",
+          "oklch(61% 0.2384 281.3)",
+          "oklch(72% 0.2384 281.3)",
+          "oklch(84% 0.2384 281.3)",
+          "oklch(95% 0.2384 281.3)"
+        ]
+      },
+      "purple-hover": {
+        "role": "primary",
+        "displayName": "Purple Hover",
+        "tonalRamp": [
+          "oklch(15% 0.2174 281.4)",
+          "oklch(26% 0.2174 281.4)",
+          "oklch(38% 0.2174 281.4)",
+          "oklch(49% 0.2174 281.4)",
+          "oklch(61% 0.2174 281.4)",
+          "oklch(72% 0.2174 281.4)",
+          "oklch(84% 0.2174 281.4)",
+          "oklch(95% 0.2174 281.4)"
+        ]
+      },
+      "accent-text": {
+        "role": "primary",
+        "displayName": "Accent Text",
+        "tonalRamp": [
+          "oklch(15% 0.1210 281.6)",
+          "oklch(26% 0.1210 281.6)",
+          "oklch(38% 0.1210 281.6)",
+          "oklch(49% 0.1210 281.6)",
+          "oklch(61% 0.1210 281.6)",
+          "oklch(72% 0.1210 281.6)",
+          "oklch(84% 0.1210 281.6)",
+          "oklch(95% 0.1210 281.6)"
+        ]
+      },
+      "accent-surface": {
+        "role": "primary",
+        "displayName": "Accent Surface",
+        "tonalRamp": [
+          "oklch(15% 0.1365 281.5)",
+          "oklch(26% 0.1365 281.5)",
+          "oklch(38% 0.1365 281.5)",
+          "oklch(49% 0.1365 281.5)",
+          "oklch(61% 0.1365 281.5)",
+          "oklch(72% 0.1365 281.5)",
+          "oklch(84% 0.1365 281.5)",
+          "oklch(95% 0.1365 281.5)"
+        ]
+      },
+      "focus": {
+        "role": "primary",
+        "displayName": "Focus",
+        "tonalRamp": [
+          "oklch(15% 0.1210 281.6)",
+          "oklch(26% 0.1210 281.6)",
+          "oklch(38% 0.1210 281.6)",
+          "oklch(49% 0.1210 281.6)",
+          "oklch(61% 0.1210 281.6)",
+          "oklch(72% 0.1210 281.6)",
+          "oklch(84% 0.1210 281.6)",
+          "oklch(95% 0.1210 281.6)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(26% 0.0000 0.0)",
+          "oklch(38% 0.0000 0.0)",
+          "oklch(49% 0.0000 0.0)",
+          "oklch(61% 0.0000 0.0)",
+          "oklch(72% 0.0000 0.0)",
+          "oklch(84% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "success": {
+        "role": "secondary",
+        "displayName": "Success",
+        "tonalRamp": [
+          "oklch(15% 0.1423 148.0)",
+          "oklch(26% 0.1423 148.0)",
+          "oklch(38% 0.1423 148.0)",
+          "oklch(49% 0.1423 148.0)",
+          "oklch(61% 0.1423 148.0)",
+          "oklch(72% 0.1423 148.0)",
+          "oklch(84% 0.1423 148.0)",
+          "oklch(95% 0.1423 148.0)"
+        ]
+      },
+      "warning": {
+        "role": "secondary",
+        "displayName": "Warning",
+        "tonalRamp": [
+          "oklch(15% 0.1572 84.1)",
+          "oklch(26% 0.1572 84.1)",
+          "oklch(38% 0.1572 84.1)",
+          "oklch(49% 0.1572 84.1)",
+          "oklch(61% 0.1572 84.1)",
+          "oklch(72% 0.1572 84.1)",
+          "oklch(84% 0.1572 84.1)",
+          "oklch(95% 0.1572 84.1)"
+        ]
+      },
+      "warning-surface": {
+        "role": "secondary",
+        "displayName": "Warning Surface",
+        "tonalRamp": [
+          "oklch(15% 0.0442 74.5)",
+          "oklch(26% 0.0442 74.5)",
+          "oklch(38% 0.0442 74.5)",
+          "oklch(49% 0.0442 74.5)",
+          "oklch(61% 0.0442 74.5)",
+          "oklch(72% 0.0442 74.5)",
+          "oklch(84% 0.0442 74.5)",
+          "oklch(95% 0.0442 74.5)"
+        ]
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "Danger",
+        "tonalRamp": [
+          "oklch(15% 0.1437 29.5)",
+          "oklch(26% 0.1437 29.5)",
+          "oklch(38% 0.1437 29.5)",
+          "oklch(49% 0.1437 29.5)",
+          "oklch(61% 0.1437 29.5)",
+          "oklch(72% 0.1437 29.5)",
+          "oklch(84% 0.1437 29.5)",
+          "oklch(95% 0.1437 29.5)"
+        ]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "White",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(26% 0.0000 0.0)",
+          "oklch(38% 0.0000 0.0)",
+          "oklch(49% 0.0000 0.0)",
+          "oklch(61% 0.0000 0.0)",
+          "oklch(72% 0.0000 0.0)",
+          "oklch(84% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "accent-bright": {
+        "role": "primary",
+        "displayName": "Accent Bright",
+        "tonalRamp": [
+          "oklch(15% 0.0451 281.3)",
+          "oklch(26% 0.0451 281.3)",
+          "oklch(38% 0.0451 281.3)",
+          "oklch(49% 0.0451 281.3)",
+          "oklch(61% 0.0451 281.3)",
+          "oklch(72% 0.0451 281.3)",
+          "oklch(84% 0.0451 281.3)",
+          "oklch(95% 0.0451 281.3)"
+        ]
+      },
+      "tabletop": {
+        "role": "secondary",
+        "displayName": "Tabletop",
+        "tonalRamp": [
+          "oklch(15% 0.0311 273.1)",
+          "oklch(26% 0.0311 273.1)",
+          "oklch(38% 0.0311 273.1)",
+          "oklch(49% 0.0311 273.1)",
+          "oklch(61% 0.0311 273.1)",
+          "oklch(72% 0.0311 273.1)",
+          "oklch(84% 0.0311 273.1)",
+          "oklch(95% 0.0311 273.1)"
+        ]
+      },
+      "lawn": {
+        "role": "secondary",
+        "displayName": "Lawn",
+        "tonalRamp": [
+          "oklch(15% 0.0318 176.8)",
+          "oklch(26% 0.0318 176.8)",
+          "oklch(38% 0.0318 176.8)",
+          "oklch(49% 0.0318 176.8)",
+          "oklch(61% 0.0318 176.8)",
+          "oklch(72% 0.0318 176.8)",
+          "oklch(84% 0.0318 176.8)",
+          "oklch(95% 0.0318 176.8)"
+        ]
+      },
+      "road": {
+        "role": "secondary",
+        "displayName": "Road",
+        "tonalRamp": [
+          "oklch(15% 0.0211 269.4)",
+          "oklch(26% 0.0211 269.4)",
+          "oklch(38% 0.0211 269.4)",
+          "oklch(49% 0.0211 269.4)",
+          "oklch(61% 0.0211 269.4)",
+          "oklch(72% 0.0211 269.4)",
+          "oklch(84% 0.0211 269.4)",
+          "oklch(95% 0.0211 269.4)"
+        ]
+      },
+      "sidewalk": {
+        "role": "secondary",
+        "displayName": "Sidewalk",
+        "tonalRamp": [
+          "oklch(15% 0.0171 281.7)",
+          "oklch(26% 0.0171 281.7)",
+          "oklch(38% 0.0171 281.7)",
+          "oklch(49% 0.0171 281.7)",
+          "oklch(61% 0.0171 281.7)",
+          "oklch(72% 0.0171 281.7)",
+          "oklch(84% 0.0171 281.7)",
+          "oklch(95% 0.0171 281.7)"
+        ]
+      },
+      "ethereum": {
+        "role": "secondary",
+        "displayName": "Ethereum",
+        "tonalRamp": [
+          "oklch(15% 0.1212 291.2)",
+          "oklch(26% 0.1212 291.2)",
+          "oklch(38% 0.1212 291.2)",
+          "oklch(49% 0.1212 291.2)",
+          "oklch(61% 0.1212 291.2)",
+          "oklch(72% 0.1212 291.2)",
+          "oklch(84% 0.1212 291.2)",
+          "oklch(95% 0.1212 291.2)"
+        ]
+      },
+      "base": {
+        "role": "secondary",
+        "displayName": "Base",
+        "tonalRamp": [
+          "oklch(15% 0.2152 262.9)",
+          "oklch(26% 0.2152 262.9)",
+          "oklch(38% 0.2152 262.9)",
+          "oklch(49% 0.2152 262.9)",
+          "oklch(61% 0.2152 262.9)",
+          "oklch(72% 0.2152 262.9)",
+          "oklch(84% 0.2152 262.9)",
+          "oklch(95% 0.2152 262.9)"
+        ]
+      },
+      "solana": {
+        "role": "secondary",
+        "displayName": "Solana",
+        "tonalRamp": [
+          "oklch(15% 0.1319 170.8)",
+          "oklch(26% 0.1319 170.8)",
+          "oklch(38% 0.1319 170.8)",
+          "oklch(49% 0.1319 170.8)",
+          "oklch(61% 0.1319 170.8)",
+          "oklch(72% 0.1319 170.8)",
+          "oklch(84% 0.1319 170.8)",
+          "oklch(95% 0.1319 170.8)"
+        ]
+      },
+      "arbitrum": {
+        "role": "secondary",
+        "displayName": "Arbitrum",
+        "tonalRamp": [
+          "oklch(15% 0.0986 243.1)",
+          "oklch(26% 0.0986 243.1)",
+          "oklch(38% 0.0986 243.1)",
+          "oklch(49% 0.0986 243.1)",
+          "oklch(61% 0.0986 243.1)",
+          "oklch(72% 0.0986 243.1)",
+          "oklch(84% 0.0986 243.1)",
+          "oklch(95% 0.0986 243.1)"
+        ]
+      },
+      "optimism": {
+        "role": "secondary",
+        "displayName": "Optimism",
+        "tonalRamp": [
+          "oklch(15% 0.1800 19.4)",
+          "oklch(26% 0.1800 19.4)",
+          "oklch(38% 0.1800 19.4)",
+          "oklch(49% 0.1800 19.4)",
+          "oklch(61% 0.1800 19.4)",
+          "oklch(72% 0.1800 19.4)",
+          "oklch(84% 0.1800 19.4)",
+          "oklch(95% 0.1800 19.4)"
+        ]
+      },
+      "polygon": {
+        "role": "secondary",
+        "displayName": "Polygon",
+        "tonalRamp": [
+          "oklch(15% 0.1733 301.8)",
+          "oklch(26% 0.1733 301.8)",
+          "oklch(38% 0.1733 301.8)",
+          "oklch(49% 0.1733 301.8)",
+          "oklch(61% 0.1733 301.8)",
+          "oklch(72% 0.1733 301.8)",
+          "oklch(84% 0.1733 301.8)",
+          "oklch(95% 0.1733 301.8)"
+        ]
+      },
+      "bnb": {
+        "role": "secondary",
+        "displayName": "BNB",
+        "tonalRamp": [
+          "oklch(15% 0.1646 87.1)",
+          "oklch(26% 0.1646 87.1)",
+          "oklch(38% 0.1646 87.1)",
+          "oklch(49% 0.1646 87.1)",
+          "oklch(61% 0.1646 87.1)",
+          "oklch(72% 0.1646 87.1)",
+          "oklch(84% 0.1646 87.1)",
+          "oklch(95% 0.1646 87.1)"
+        ]
+      },
+      "avalanche": {
+        "role": "secondary",
+        "displayName": "Avalanche",
+        "tonalRamp": [
+          "oklch(15% 0.2038 25.1)",
+          "oklch(26% 0.2038 25.1)",
+          "oklch(38% 0.2038 25.1)",
+          "oklch(49% 0.2038 25.1)",
+          "oklch(61% 0.2038 25.1)",
+          "oklch(72% 0.2038 25.1)",
+          "oklch(84% 0.2038 25.1)",
+          "oklch(95% 0.2038 25.1)"
+        ]
+      },
+      "bitcoin": {
+        "role": "secondary",
+        "displayName": "Bitcoin",
+        "tonalRamp": [
+          "oklch(15% 0.1663 62.6)",
+          "oklch(26% 0.1663 62.6)",
+          "oklch(38% 0.1663 62.6)",
+          "oklch(49% 0.1663 62.6)",
+          "oklch(61% 0.1663 62.6)",
+          "oklch(72% 0.1663 62.6)",
+          "oklch(84% 0.1663 62.6)",
+          "oklch(95% 0.1663 62.6)"
+        ]
+      },
+      "unichain": {
+        "role": "secondary",
+        "displayName": "Unichain",
+        "tonalRamp": [
+          "oklch(15% 0.2381 356.8)",
+          "oklch(26% 0.2381 356.8)",
+          "oklch(38% 0.2381 356.8)",
+          "oklch(49% 0.2381 356.8)",
+          "oklch(61% 0.2381 356.8)",
+          "oklch(72% 0.2381 356.8)",
+          "oklch(84% 0.2381 356.8)",
+          "oklch(95% 0.2381 356.8)"
+        ]
+      },
+      "hyperevm": {
+        "role": "secondary",
+        "displayName": "HyperEVM",
+        "tonalRamp": [
+          "oklch(15% 0.1210 171.9)",
+          "oklch(26% 0.1210 171.9)",
+          "oklch(38% 0.1210 171.9)",
+          "oklch(49% 0.1210 171.9)",
+          "oklch(61% 0.1210 171.9)",
+          "oklch(72% 0.1210 171.9)",
+          "oklch(84% 0.1210 171.9)",
+          "oklch(95% 0.1210 171.9)"
+        ]
+      },
+      "linea": {
+        "role": "secondary",
+        "displayName": "Linea",
+        "tonalRamp": [
+          "oklch(15% 0.0559 197.6)",
+          "oklch(26% 0.0559 197.6)",
+          "oklch(38% 0.0559 197.6)",
+          "oklch(49% 0.0559 197.6)",
+          "oklch(61% 0.0559 197.6)",
+          "oklch(72% 0.0559 197.6)",
+          "oklch(84% 0.0559 197.6)",
+          "oklch(95% 0.0559 197.6)"
+        ]
+      },
+      "neutral-hub": {
+        "role": "neutral",
+        "displayName": "Neutral Hub",
+        "tonalRamp": [
+          "oklch(15% 0.0247 288.4)",
+          "oklch(26% 0.0247 288.4)",
+          "oklch(38% 0.0247 288.4)",
+          "oklch(49% 0.0247 288.4)",
+          "oklch(61% 0.0247 288.4)",
+          "oklch(72% 0.0247 288.4)",
+          "oklch(84% 0.0247 288.4)",
+          "oklch(95% 0.0247 288.4)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Two-line city introduction, with responsive size overrides."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Guide heading; trip amounts use a local larger heading."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Guide paragraphs and explanations."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Action labels and compact values."
+      },
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "Preview and source badges."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating-surface",
+        "value": "0 3px 8px #00000024, 0 14px 38px #0000003d",
+        "purpose": "Opaque floating panels and controls."
+      },
+      {
+        "name": "district-label",
+        "value": "0 3px 9px #0000004d",
+        "purpose": "Projected chain labels above the modeled districts."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-transition",
+        "value": "160ms",
+        "purpose": "Background, color, shadow, and press transitions."
+      },
+      {
+        "name": "control-press",
+        "value": "scale(0.96)",
+        "purpose": "Direct press feedback for enabled buttons."
+      },
+      {
+        "name": "loading-pulse",
+        "value": "1.3s ease-in-out infinite alternate",
+        "purpose": "Loading cube only; disabled for reduced motion."
+      },
+      {
+        "name": "loading-fade",
+        "value": "opacity 0.4s",
+        "purpose": "Loading cover exit."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1650px"
+      },
+      {
+        "name": "compact",
+        "value": "1100px"
+      },
+      {
+        "name": "mobile",
+        "value": "760px"
+      },
+      {
+        "name": "narrow-mobile",
+        "value": "430px"
+      },
+      {
+        "name": "short-height",
+        "value": "620px"
+      },
+      {
+        "name": "compact-desktop-height",
+        "value": "800px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Whale flyover",
+      "kind": "button",
+      "description": "Primary demo action; the real control is disabled outside Demo city.",
+      "html": "<button class=\"ds-whale\">Whale flyover</button>",
+      "css": ".ds-whale{font-family:Inter,sans-serif;transition:background-color .16s,color .16s,box-shadow .16s,transform .16s;box-shadow:var(--shadow,0 3px 8px #00000024,0 14px 38px #0000003d);border:0;cursor:pointer;min-height:43px;padding:0 14px;border-radius:9px;background:var(--purple,#4615c8);color:#fff;font-size:11px;font-weight:700}.ds-whale:hover{background:var(--purple-hover,#3901aa)}.ds-whale:focus-visible{outline:3px solid var(--focus,#a7aaff);outline-offset:4px;}.ds-whale:active:not(:disabled){transform:scale(.96)}.ds-whale:disabled{opacity:.45;cursor:default}",
+      "refersTo": "whale-button"
+    },
+    {
+      "name": "Visit Relay",
+      "kind": "button",
+      "description": "Secondary external navigation in the header.",
+      "html": "<a class=\"ds-relay-link\" href=\"https://relay.link\" target=\"_blank\" rel=\"noopener noreferrer\">Visit Relay <svg viewBox=\"0 0 24 24\" width=\"17\" height=\"17\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" aria-hidden=\"true\"><path d=\"M7 17 17 7M7 7h10v10\"/></svg></a>",
+      "css": ".ds-relay-link{font-family:Inter,sans-serif;display:inline-flex;align-items:center;gap:14px;padding:12px 16px;border-radius:8px;background:var(--surface,#232323);color:var(--ink,#ededed);font-size:12px;font-weight:650;text-decoration:none}.ds-relay-link:hover{background:var(--hover,#2d2d2d)}.ds-relay-link:focus-visible{outline:3px solid var(--focus,#a7aaff);outline-offset:4px;}",
+      "refersTo": "relay-link"
+    },
+    {
+      "name": "Camera control",
+      "kind": "button",
+      "description": "Compact icon action on the dark camera toolbar.",
+      "html": "<div class=\"ds-camera\"><button class=\"ds-camera-button\" aria-label=\"Zoom in\"><svg viewBox=\"0 0 24 24\" width=\"17\" height=\"17\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg></button></div>",
+      "css": ".ds-camera{display:inline-flex;padding:5px;border-radius:10px;background:var(--paper,#1c1c1c);box-shadow:var(--shadow,0 3px 8px #00000024,0 14px 38px #0000003d);}.ds-camera-button{font-family:Inter,sans-serif;transition:background-color .16s,color .16s,box-shadow .16s,transform .16s;display:grid;place-items:center;width:40px;height:40px;border:0;border-radius:7px;background:transparent;color:var(--ink,#ededed);cursor:pointer}.ds-camera-button:hover{background:var(--hover,#2d2d2d)}.ds-camera-button:focus-visible{outline:3px solid var(--focus,#a7aaff);outline-offset:4px;}.ds-camera-button:active{transform:scale(.96)}.ds-camera-button[aria-pressed=\"true\"]{color:#dbdeff;background:var(--accent-surface,#221166)}",
+      "refersTo": "scene-control"
+    },
+    {
+      "name": "Activity source",
+      "kind": "input",
+      "description": "Native source selection in a floating dark shell.",
+      "html": "<label class=\"ds-select-shell\"><select class=\"ds-source\" aria-label=\"Choose activity source\"><option>Relay activity</option><option selected>Demo city</option></select><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" aria-hidden=\"true\"><path d=\"m6 9 6 6 6-6\"/></svg></label>",
+      "css": ".ds-select-shell{font-family:Inter,sans-serif;box-shadow:var(--shadow,0 3px 8px #00000024,0 14px 38px #0000003d);display:inline-flex;align-items:center;gap:8px;height:43px;padding:0 12px;border-radius:9px;background:var(--paper,#1c1c1c);color:var(--ink,#ededed)}.ds-source{font-family:Inter,sans-serif;appearance:none;border:0;background:transparent;color:var(--ink,#ededed);font-size:12px;font-weight:600;padding:11px 0;max-width:140px;cursor:pointer;color-scheme:dark}.ds-source:focus-visible{outline:3px solid var(--focus,#a7aaff);outline-offset:4px;}.ds-source option{background:var(--surface,#232323);color:var(--ink,#ededed)}",
+      "refersTo": "source-select"
+    },
+    {
+      "name": "Header navigation",
+      "kind": "nav",
+      "description": "Active city tab with a lavender baseline; hidden in the mobile header.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main navigation\"><button class=\"ds-nav-link ds-active\" aria-current=\"page\">Explore the city</button><button class=\"ds-nav-link\">How it works</button></nav>",
+      "css": ".ds-nav{display:flex;align-items:stretch;gap:30px;height:88px}.ds-nav-link{font-family:Inter,sans-serif;transition:background-color .16s,color .16s,box-shadow .16s,transform .16s;position:relative;padding:0;border:0;background:none;color:var(--muted,#a0a0a0);font-size:13px;cursor:pointer}.ds-nav-link:hover{color:var(--ink,#ededed)}.ds-nav-link:focus-visible{outline:3px solid var(--focus,#a7aaff);outline-offset:4px;}.ds-nav-link:active{transform:scale(.96)}.ds-active{color:var(--ink,#ededed);font-weight:700}.ds-active:after{content:\"\";position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:3px 3px 0 0;background:var(--accent-text,#a7aaff)}"
+    },
+    {
+      "name": "Activity panel",
+      "kind": "card",
+      "description": "Collapsed preview panel with a semantic expansion button.",
+      "html": "<section class=\"ds-activity\"><button class=\"ds-activity-heading\" aria-expanded=\"false\"><span class=\"ds-activity-title\"><span class=\"ds-signal\"></span><strong>City activity</strong></span><span class=\"ds-preview\">PREVIEW</span></button></section>",
+      "css": ".ds-activity{font-family:Inter,sans-serif;box-shadow:var(--shadow,0 3px 8px #00000024,0 14px 38px #0000003d);width:288px;max-width:100%;overflow:hidden;border-radius:14px;background:var(--paper,#1c1c1c);color:var(--ink,#ededed)}.ds-activity-heading{font-family:Inter,sans-serif;transition:background-color .16s,color .16s,box-shadow .16s,transform .16s;display:flex;align-items:center;justify-content:space-between;width:100%;height:53px;padding:0 17px;border:0;border-bottom:1px solid var(--line,#343434);background:transparent;color:inherit;text-align:left;cursor:pointer}.ds-activity-heading:hover{background:var(--hover,#2d2d2d)}.ds-activity-heading:focus-visible{outline:3px solid var(--focus,#a7aaff);outline-offset:4px;outline-offset:-4px}.ds-activity-title{display:flex;align-items:center;gap:8px;font-size:12px}.ds-signal{width:7px;height:7px;border-radius:50%;background:var(--accent-text,#a7aaff)}.ds-preview{padding:4px 6px;border-radius:4px;background:var(--warning-surface,#302008);color:var(--warning,#ffc53d);font-size:9px;letter-spacing:.5px;font-weight:700}",
+      "refersTo": "activity-panel"
+    },
+    {
+      "name": "Trip row",
+      "kind": "button",
+      "description": "Inspectable route row with a visible selected treatment.",
+      "html": "<button class=\"ds-trip\" aria-label=\"Inspect demo transfer from Base to Ethereum\" aria-pressed=\"false\"><span class=\"ds-trip-copy\"><strong>BASE <span class=\"ds-arrow\">\u2192</span> ETH</strong><span class=\"ds-age\">Relay \u00b7 Simulation</span></span><span class=\"ds-value\">$24</span></button>",
+      "css": ".ds-trip{font-family:Inter,sans-serif;transition:background-color .16s,color .16s,box-shadow .16s,transform .16s;display:flex;align-items:center;gap:10px;width:270px;max-width:100%;padding:9px 8px;border:0;border-radius:7px;background:transparent;color:var(--ink,#ededed);text-align:left;cursor:pointer}.ds-trip:hover{background:var(--hover,#2d2d2d)}.ds-trip:focus-visible{outline:3px solid var(--focus,#a7aaff);outline-offset:4px;}.ds-trip:active{transform:scale(.96)}.ds-trip[aria-pressed=\"true\"]{background:var(--accent-surface,#221166)}.ds-trip-copy{min-width:0;flex:1}.ds-trip-copy strong{display:block;font-size:10px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-arrow{color:var(--muted,#a0a0a0);margin:0 4px;font-weight:400}.ds-age{display:block;margin-top:3px;color:var(--muted,#a0a0a0);font-size:10px}.ds-value{margin-left:auto;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}",
+      "refersTo": "trip-row"
+    },
+    {
+      "name": "Journey stage",
+      "kind": "chip",
+      "description": "Text and color distinguish the animated stage from an API status.",
+      "html": "<span class=\"ds-stage\" data-stage=\"gate\">Simulation: Waiting at the toll gate</span>",
+      "css": ".ds-stage{font-family:Inter,sans-serif;display:inline-flex;align-items:center;gap:5px;width:fit-content;max-width:100%;padding:4px 7px;border-radius:5px;background:var(--surface,#232323);color:var(--ink,#ededed);font-size:10px;font-weight:600;line-height:1.4}.ds-stage[data-stage=\"origin\"],.ds-stage[data-stage=\"fill\"]{color:#dbdeff;background:var(--accent-surface,#221166)}.ds-stage[data-stage=\"gate\"],.ds-stage[data-stage=\"pending\"],.ds-stage[data-stage=\"blocked\"]{color:var(--warning,#ffc53d);background:var(--warning-surface,#302008)}.ds-stage[data-stage=\"complete\"]{color:var(--success,#63c174);background:#172c1c}.ds-stage[data-stage=\"failed\"]{color:var(--danger,#ff8b7a);background:#321e1b}",
+      "refersTo": "stage-chip"
+    },
+    {
+      "name": "Journey progress",
+      "kind": "custom",
+      "description": "Three compact stages for the selected trip.",
+      "html": "<ol class=\"ds-steps\"><li data-state=\"complete\">Origin</li><li aria-current=\"step\">Toll gate</li><li>Destination</li></ol>",
+      "css": ".ds-steps{font-family:Inter,sans-serif;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;list-style:none;padding:0;margin:20px 0;max-width:310px}.ds-steps li{min-width:0;padding-top:9px;border-top:2px solid var(--line,#343434);font-size:10px;line-height:1.5;color:var(--muted,#a0a0a0);overflow-wrap:anywhere}.ds-steps li[aria-current=\"step\"]{border-color:var(--accent-text,#a7aaff);color:#dbdeff}.ds-steps li[data-state=\"complete\"]{border-color:var(--success,#63c174);color:var(--success,#63c174)}"
+    },
+    {
+      "name": "City operations",
+      "kind": "custom",
+      "description": "Rail occupancy, queued requests, and the demo checkpoint action.",
+      "html": "<div class=\"ds-operations\" aria-label=\"City traffic status\"><div>Rail 1: occupied \u00b7 Rail 2: clear <span>2 queued</span></div><div><span>1 waiting at checkpoints</span><button class=\"ds-release\">Release demo gates</button></div></div>",
+      "css": ".ds-operations{font-family:Inter,sans-serif;box-shadow:var(--shadow,0 3px 8px #00000024,0 14px 38px #0000003d);display:grid;gap:7px;width:fit-content;max-width:300px;padding:12px 15px;border-radius:10px;background:var(--paper,#1c1c1c);color:var(--ink,#ededed);font-size:11px;line-height:1.5;font-variant-numeric:tabular-nums}.ds-operations>div{display:flex;flex-wrap:wrap;align-items:center;gap:5px 10px}.ds-release{font-family:Inter,sans-serif;transition:background-color .16s,color .16s,box-shadow .16s,transform .16s;min-height:36px;padding:7px 10px;border:0;border-radius:6px;background:var(--accent-surface,#221166);color:#dbdeff;font-size:11px;font-weight:600;cursor:pointer}.ds-release:hover{background:#2f0093}.ds-release:focus-visible{outline:3px solid var(--focus,#a7aaff);outline-offset:4px;}.ds-release:active:not(:disabled){transform:scale(.96)}.ds-release:disabled{opacity:.45;cursor:default}",
+      "refersTo": "city-operations"
+    }
+  ],
+  "narrative": {
+    "northStar": "The tabletop transfer city",
+    "overview": "The confirmed world is a colorful, toy-like city made from real 3D building, character, and vehicle models. Dusk materials, planted blocks, lit checkpoints, and an elevated railway establish its miniature scale. Relay's dark surfaces, purple actions, Inter typography, and official white wordmark frame the city without replacing its playful model silhouettes.\n\nChains organize the landscape into districts; the buildings represent Relay homes, reported integrators, and shared app space. Visible labels and compact inspection panels explain the journeys without presenting the animation as a literal map of funds.",
+    "keyCharacteristics": [
+      "Colorful modeled districts and travelers against a dark tabletop.",
+      "Relay dark surfaces, purple actions, Inter type, and the official wordmark.",
+      "Compact rounded controls with shallow ambient shadows.",
+      "Visible source scope, stage labels, and a text route into the scene."
+    ],
+    "rules": [
+      {
+        "name": "The Stage Meaning Rule",
+        "body": "Stage color always accompanies a text label; police lights and checkpoint colors illustrate the reported outcome rather than establish transaction evidence.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "**Do** preserve the user's colorful miniature world, actual model silhouettes, and approved Relay dark branding.",
+      "**Do** keep source scope, chain identity, attribution, and API stage readable outside the canvas.",
+      "**Do** retain native controls, visible focus, pause, and reduced-motion behavior.",
+      "**Do** reuse the existing panel, radius, and shadow vocabulary."
+    ],
+    "donts": [
+      "**Don't** replace the modeled city with an image or decorative interface cards.",
+      "**Don't** promote sample counts or sample value to global daily statistics.",
+      "**Don't** describe route animation, gate waits, police escorts, or travel speed as literal settlement evidence.",
+      "**Don't** treat two captured browser states as exhaustive visual or accessibility verification."
+    ]
+  }
+}

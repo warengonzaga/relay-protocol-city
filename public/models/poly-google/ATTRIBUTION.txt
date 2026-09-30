@@ -1,0 +1,11 @@
+Airplane by Poly by Google, licensed under Creative Commons Attribution 3.0 Unported (CC BY 3.0).
+Source: https://poly.pizza/m/8ciDd9k8wha
+License: https://creativecommons.org/licenses/by/3.0/
+Downloaded 2026-09-30; original GLB is unmodified.
+
+Bus by Poly by Google, licensed under Creative Commons Attribution 3.0 Unported (CC BY 3.0).
+Source: https://poly.pizza/m/4CPpvEmrMoF
+License: https://creativecommons.org/licenses/by/3.0/
+Downloaded 2026-09-30; original GLB is unmodified.
+
+Application use may scale, animate, tint, or decorate these models with chain-route labels. Those runtime changes are by the Relay City contributors. The original creators do not endorse Relay City. Preserve these credits and license links in distributed copies.

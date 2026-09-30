@@ -1,0 +1,399 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import * as THREE from "three";
+import { createTraffic } from "../src/traffic.js";
+import { flightRoute, groundRoute, trainPlan } from "../src/routes.js";
+import { getSignalState } from "../src/world-map.js";
+import { createDemoTransfers } from "../src/activity.js";
+import { refreshTravelerPace } from "../src/travelers.js";
+
+const noop = () => {};
+const transfer = (number, changes = {}) => ({
+  id: `0x${number.toString(16).padStart(64, "0")}`,
+  originChainId: 8453,
+  destinationChainId: 56,
+  kind: "car",
+  amountUsd: 500,
+  stage: "gate",
+  status: "pending",
+  app: { kind: "relay", key: "relay", name: "Relay" },
+  ...changes,
+});
+
+function fixture(t) {
+  const previousDocument = globalThis.document;
+  const context = Object.fromEntries([
+    "beginPath", "roundRect", "fill", "arc", "moveTo", "lineTo",
+    "closePath", "stroke", "fillText",
+  ].map(key => [key, noop]));
+  globalThis.document = {
+    createElement: () => ({ getContext: () => context }),
+  };
+  const created = [];
+  const models = {
+    create(key) {
+      const root = new THREE.Group();
+      root.userData.height = 2;
+      root.userData.modelKey = key;
+      created.push(root);
+      return root;
+    },
+  };
+  const scene = new THREE.Scene();
+  let elapsed = 0;
+  const traffic = createTraffic(scene, models, {
+    updateSignals(seconds) { elapsed = seconds; },
+  }, noop);
+  t.after(() => {
+    traffic.dispose();
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+  });
+  const tick = (seconds = .1) => {
+    for (let remaining = seconds; remaining > .000001; remaining -= .1) {
+      traffic.update(Math.min(.1, remaining));
+    }
+  };
+  const until = (predicate, message, seconds = 90) => {
+    for (let step = 0; step < seconds * 10 && !predicate(); step++) tick();
+    assert.ok(predicate(), message);
+  };
+  return {
+    traffic, scene, created, tick, until,
+    root: id => scene.children[0]?.children.find(root => root.userData.transfer?.id === id),
+    phase: id => traffic.inspect(id)?.phase,
+    get elapsed() { return elapsed; },
+  };
+}
+
+test("opposing trains share separate lanes and a third waits until its tunnel is clear", t => {
+  const f = fixture(t);
+  const first = transfer(1, { kind: "train" });
+  const opposite = transfer(2, { kind: "train", originChainId: 56, destinationChainId: 8453 });
+  const queued = transfer(3, { kind: "train" });
+  f.traffic.setData([queued, opposite, first], "live");
+  f.tick(1);
+  assert.equal(f.traffic.count, 2);
+  assert.notEqual(f.traffic.inspect(first.id).lane, f.traffic.inspect(opposite.id).lane);
+  assert.deepEqual(f.traffic.stats.rails, [true, true]);
+  assert.equal(f.traffic.stats.queued, 1);
+  f.until(() => f.phase(first.id) === "rail-origin" && f.phase(opposite.id) === "rail-origin", "both trains must reach their origin stations");
+  f.tick(30);
+  assert.equal(f.phase(first.id), "rail-origin");
+  assert.equal(f.phase(opposite.id), "rail-origin");
+  assert.equal(f.traffic.stats.queued, 1);
+
+  f.traffic.setData([{ ...first, stage: "complete", status: "success" }], "live");
+  f.until(() => f.phase(first.id) === "rail-exit", "confirmed train must leave its destination station");
+  assert.equal(f.phase(queued.id), undefined, "the shared lane stays occupied until the train reaches its tunnel");
+  f.until(() => Boolean(f.phase(queued.id)), "the queued train must survive polling and spawn when its lane clears");
+  assert.equal(f.phase(first.id), undefined);
+  assert.equal(f.phase(opposite.id), "rail-origin");
+  assert.equal(f.traffic.count, 2);
+  assert.equal(f.created.filter(root => root.userData.modelKey === "train-electric-city-a").length, 3);
+  f.traffic.setData([queued, opposite, { ...first, stage: "complete" }], "live");
+  f.tick(3);
+  assert.equal(f.traffic.stats.queued, 0, "repeated samples must not enqueue a second traveler for an existing ID");
+});
+
+test("live pending travelers cannot be released by elapsed time, missing updates, or demo controls", t => {
+  const f = fixture(t);
+  const pending = transfer(10);
+  f.traffic.setData([pending], "live");
+  f.until(() => f.phase(pending.id) === "gate", "pending traveler must reach its origin gate");
+  const root = f.root(pending.id);
+  const stoppedAt = root.position.clone();
+  f.traffic.setData([], "live");
+  f.traffic.releasePending();
+  assert.equal(f.traffic.flyover(transfer(11, { kind: "airplane" })), false);
+  f.tick(120);
+  assert.equal(f.phase(pending.id), "gate");
+  assert.equal(root.position.distanceTo(stoppedAt), 0);
+  assert.deepEqual(f.traffic.trackedIds, [pending.id]);
+
+  const completed = { ...pending, stage: "complete", status: "success" };
+  f.traffic.setData([completed, completed], "live");
+  f.until(() => f.phase(pending.id) === "onward", "only the same request's confirmed success releases its gate");
+  assert.equal(f.root(pending.id), root, "the status update must reuse the existing traveler");
+  assert.equal(root.userData.transfer.stage, "complete");
+  assert.equal(f.traffic.stats.queued, 0);
+  f.until(() => f.traffic.count === 0, "the confirmed traveler must eventually arrive and be removed");
+  f.traffic.setData([completed], "live");
+  f.tick(2);
+  assert.equal(f.traffic.count, 0, "a repeated completed sample must not replay a live request");
+});
+
+test("live failures return from the checkpoint and from partway along the onward route", t => {
+  const f = fixture(t);
+  const request = transfer(20, { kind: "pedestrian" });
+  f.traffic.setData([request], "live");
+  f.until(() => f.phase(request.id) === "gate", "walker must reach its gate");
+  const root = f.root(request.id);
+  const origin = groundRoute(request).depart.getPointAt(0);
+  f.traffic.setData([{ ...request, stage: "failed", status: "failure" }], "live");
+  f.until(() => f.phase(request.id) === "return", "failed traveler must return toward its origin");
+  f.until(() => f.traffic.count === 0, "failed traveler must finish the return journey");
+  assert.ok(root.position.distanceTo(origin) < .01);
+
+  const later = transfer(21, { kind: "pedestrian", stage: "fill" });
+  f.traffic.setData([later], "live");
+  f.until(() => f.phase(later.id) === "onward", "confirmed fill must release the traveler");
+  f.tick(2);
+  const laterRoot = f.root(later.id);
+  f.traffic.setData([{ ...later, stage: "refunded", status: "refund" }], "live");
+  f.until(() => f.phase(later.id) === "back-to-gate", "failure after departure must reverse the traveled onward segment");
+  f.until(() => f.phase(later.id) === "return", "the traveler must return through its origin checkpoint");
+  f.until(() => f.traffic.count === 0, "refunded traveler must finish back at its origin");
+  assert.ok(laterRoot.position.distanceTo(groundRoute(later).depart.getPointAt(0)) < .01);
+});
+
+test("blocked pedestrians and cars board police, end at the station, and dispose owned resources", t => {
+  const f = fixture(t);
+  for (const [number, kind] of [[30, "pedestrian"], [31, "car"]]) {
+    const request = transfer(number, { kind });
+    f.traffic.setData([request], "live", true);
+    f.until(() => f.phase(request.id) === "gate", "traveler must reach its gate before police arrive");
+    const original = f.root(request.id);
+    const originalLabel = original.children.find(node => node.userData.transient);
+    let labelDisposals = 0;
+    originalLabel.material.addEventListener("dispose", () => labelDisposals++);
+    f.traffic.setData([{ ...request, stage: "failed", blocked: true }], "live");
+    f.until(() => f.phase(request.id) === "board", "blocked traveler must board a police vehicle");
+    assert.equal(f.scene.children[0].children.length, 2);
+    f.until(() => f.phase(request.id) === "police", "police must leave after boarding");
+    assert.equal(labelDisposals, 1, "the replaced traveler's label must be disposed exactly once");
+    assert.equal(f.scene.children[0].children.length, 1);
+    const police = f.root(request.id);
+    let ownedDisposals = 0;
+    let ownedResources = 0;
+    police.traverse(node => {
+      if (node.userData.owned) {
+        ownedResources += 2;
+        node.geometry.addEventListener("dispose", () => ownedDisposals++);
+        node.material.addEventListener("dispose", () => ownedDisposals++);
+      }
+    });
+    assert.ok(ownedResources >= 4, "police must have two independently flashing lights");
+    f.until(() => f.traffic.count === 0, "police must reach their station and leave the scene");
+    assert.ok(police.position.distanceTo(groundRoute(request).police.getPointAt(1)) < .01);
+    assert.equal(ownedDisposals, ownedResources);
+    assert.equal(f.scene.children[0].children.length, 0);
+    assert.equal(labelDisposals, 1);
+  }
+});
+
+test("demo pending travelers are explicit, untracked, and released only by the demo control", t => {
+  const f = fixture(t);
+  const demo = transfer(40, { id: "demo-pending", demoScenario: "pending" });
+  f.traffic.setData([demo], "demo");
+  f.until(() => f.phase(demo.id) === "gate", "demo traveler must reach its gate");
+  f.tick(40);
+  assert.equal(f.phase(demo.id), "gate");
+  assert.deepEqual(f.traffic.trackedIds, []);
+  f.traffic.releasePending();
+  f.until(() => f.phase(demo.id) === "onward", "the demo control must release its pending scenario");
+  assert.deepEqual(f.traffic.trackedIds, []);
+});
+
+test("road travelers stop at red lights and resume under the same world signal clock", t => {
+  const f = fixture(t);
+  const request = transfer(50, { stage: "complete" });
+  f.traffic.setData([request], "live");
+  f.until(() => Boolean(f.root(request.id)), "car must spawn");
+  const root = f.root(request.id);
+  let previous = root.position.clone();
+  let direction = new THREE.Vector3();
+  f.until(() => {
+    const moved = root.position.clone().sub(previous);
+    if (moved.length() > .01) direction.copy(moved).normalize();
+    previous.copy(root.position);
+    return f.traffic.inspect(request.id)?.stopped;
+  }, "a lone car must stop for a non-green signal");
+  const axis = Math.abs(direction.x) > Math.abs(direction.z) ? "x" : "z";
+  assert.notEqual(getSignalState(f.elapsed, axis), "green");
+  const stoppedAt = root.position.clone();
+  f.tick(.1);
+  assert.ok(root.position.distanceTo(stoppedAt) < .0001);
+  f.until(() => root.position.distanceTo(stoppedAt) > .01, "car must resume when its signal turns green", 20);
+  assert.equal(getSignalState(f.elapsed, axis), "green");
+  for (let seconds = -18; seconds < 54; seconds += .1) {
+    assert.ok(!(getSignalState(seconds, "x") === "green" && getSignalState(seconds, "z") === "green"));
+  }
+});
+
+test("pending airplanes remain queued and airborne failures return to their original entry", t => {
+  const f = fixture(t);
+  const request = transfer(60, { kind: "airplane" });
+  f.traffic.setData([request], "live");
+  f.tick(30);
+  assert.equal(f.traffic.count, 0, "pending backend state must not animate a completed flight");
+  assert.equal(f.traffic.stats.queued, 1);
+  assert.deepEqual(f.traffic.trackedIds, [request.id]);
+  f.traffic.setData([], "live");
+  f.tick(30);
+  assert.equal(f.traffic.stats.queued, 1);
+  f.traffic.setData([{ ...request, stage: "fill" }], "live");
+  f.until(() => Boolean(f.root(request.id)), "confirmed fill must release the queued airplane");
+  const root = f.root(request.id);
+  const entry = root.position.clone();
+  f.tick(2);
+  assert.ok(root.position.distanceTo(entry) > 20);
+  f.traffic.setData([{ ...request, stage: "failed" }], "live");
+  f.until(() => f.traffic.count === 0, "failed airborne request must finish its return flight");
+  assert.ok(root.position.distanceTo(entry) < .01, "failure must end at the origin entry, not the destination bearing");
+});
+
+test("a train failure after departure returns through its origin without destination arrival", t => {
+  const f = fixture(t);
+  const request = transfer(70, { kind: "train", stage: "fill" });
+  f.traffic.setData([request], "live");
+  f.until(() => f.phase(request.id) === "rail-travel", "train must depart after confirmed fill");
+  f.tick(2);
+  const origin = trainPlan(request).at(trainPlan(request).origin);
+  const root = f.root(request.id);
+  f.traffic.setData([{ ...request, stage: "failed" }], "live");
+  let passedOrigin = false;
+  f.until(() => {
+    assert.notEqual(f.phase(request.id), "rail-destination", "failed train must not dwell as a destination arrival");
+    if (root.position.distanceTo(origin) < 4) passedOrigin = true;
+    return !f.phase(request.id);
+  }, "failed train must eventually clear its tunnel");
+  assert.ok(passedOrigin, "failed train must return via its origin station");
+});
+
+test("bounded request tracking rotates across active and queued unresolved IDs", t => {
+  const f = fixture(t);
+  const requests = Array.from({ length: 25 }, (_, index) => transfer(100 + index, { kind: "train" }));
+  f.traffic.setData(requests, "live");
+  f.tick(1);
+  const tracked = new Set();
+  for (let poll = 0; poll < 3; poll++) {
+    const ids = f.traffic.trackedIds;
+    assert.ok(ids.length <= 12);
+    assert.equal(new Set(ids).size, ids.length);
+    ids.forEach(id => tracked.add(id));
+  }
+  assert.deepEqual(tracked, new Set(requests.map(request => request.id)), "queue position must not starve exact-ID status refreshes");
+});
+
+test("cars sharing an origin queue behind the gate and drain after confirmed releases", t => {
+  const f = fixture(t);
+  const requests = [80, 81, 82].map(number => transfer(number, { originChainId: 137 }));
+  f.traffic.setData(requests, "live");
+  f.until(() => f.traffic.stats.gates >= 1, "the lead car must reach its gate without a following-car deadlock");
+  f.tick(30);
+  assert.equal(f.traffic.count, 3);
+  assert.equal(f.traffic.stats.gates, 1, "following cars must queue behind the waiting gate traveler");
+  f.traffic.setData(requests.map(request => ({ ...request, stage: "complete" })), "live");
+  f.until(() => f.traffic.count === 0 && f.traffic.stats.queued === 0, "releasing every request must drain the same-origin queue", 150);
+});
+
+test("the shipped pending demo reaches its checkpoints with mixed cars and walkers", t => {
+  const f = fixture(t);
+  const requests = createDemoTransfers("pending");
+  f.traffic.setData(requests, "demo");
+  f.until(() => f.traffic.stats.gates >= 1, "the actual pending demo must reach a checkpoint");
+  f.tick(60);
+  assert.ok(requests.every(request => f.phase(request.id)), "all three pending fixtures must appear");
+  assert.ok(f.traffic.stats.gates >= 1);
+});
+
+test("a failed lead car returns without trapping the following origin queue", t => {
+  const f = fixture(t);
+  const requests = [90, 91, 92].map(number => transfer(number, { originChainId: 137 }));
+  f.traffic.setData(requests, "live");
+  f.until(() => f.traffic.stats.gates >= 1, "the lead car must reach the checkpoint");
+  f.tick(20);
+  const lead = requests.find(request => f.phase(request.id) === "gate");
+  f.traffic.setData(requests.map(request => ({ ...request, stage: request.id === lead.id ? "failed" : "complete" })), "live");
+  f.until(() => f.traffic.count === 0, "the failed car and following successful cars must all finish", 150);
+});
+
+test("a car failing after departure avoids the lane occupied by its followers", t => {
+  const f = fixture(t);
+  const requests = [95, 96, 97].map(number => transfer(number, { originChainId: 137 }));
+  f.traffic.setData(requests, "live");
+  f.until(() => f.traffic.stats.gates >= 1, "the lead car must reach the checkpoint");
+  f.tick(20);
+  const lead = requests.find(request => f.phase(request.id) === "gate");
+  f.traffic.setData(requests.map(request => ({ ...request, stage: "fill" })), "live");
+  f.until(() => f.phase(lead.id) === "onward", "the lead car must depart its gate");
+  f.tick(2);
+  f.traffic.setData(requests.map(request => ({ ...request, stage: request.id === lead.id ? "failed" : "complete" })), "live");
+  f.until(() => f.traffic.count === 0, "a mid-route failure must not trap following successful cars", 150);
+});
+
+test("unconfirmed fills stay tracked after travel until the backend confirms completion", t => {
+  const f = fixture(t);
+  for (const [index, kind] of ["pedestrian", "car", "train", "airplane"].entries()) {
+    const request = transfer(200 + index, { kind, stage: "fill" });
+    f.traffic.setData([request], "live", true);
+    f.tick(120);
+    assert.equal(f.traffic.count, 1, `${kind} must not disappear while its destination transaction remains unconfirmed`);
+    assert.deepEqual(f.traffic.trackedIds, [request.id]);
+    f.traffic.setData([], "live");
+    f.tick(10);
+    assert.deepEqual(f.traffic.trackedIds, [request.id], "missing refreshes must not turn a submitted fill into completion");
+    f.traffic.setData([{ ...request, stage: "complete", status: "success" }], "live");
+    f.until(() => f.traffic.count === 0, `${kind} must finish after backend-confirmed completion`);
+  }
+});
+
+test("a failure while awaiting destination confirmation still returns the original traveler", t => {
+  const f = fixture(t);
+  for (const [index, kind] of ["pedestrian", "car", "train", "airplane"].entries()) {
+    const request = transfer(210 + index, { kind, stage: "fill" });
+    f.traffic.setData([request], "live", true);
+    f.tick(120);
+    const root = f.root(request.id);
+    assert.ok(root, `${kind} must still be represented before the late failure`);
+    f.traffic.setData([{ ...request, stage: "failed", status: "failure" }], "live");
+    const rail = kind === "train" ? trainPlan(request) : null;
+    const origin = rail ? rail.at(rail.origin) : kind === "airplane"
+      ? flightRoute(request).getPointAt(0) : groundRoute(request).depart.getPointAt(0);
+    let passedOrigin = false;
+    f.until(() => {
+      if (root.position.distanceTo(origin) < 4) passedOrigin = true;
+      return f.traffic.count === 0;
+    }, `${kind} must return after a failure received while awaiting destination confirmation`, 120);
+    assert.ok(passedOrigin, `${kind} must return to its origin after the late failure`);
+  }
+});
+
+test("same-ID timing updates change physical pace and animation without changing police speed", t => {
+  const f = fixture(t);
+  const walking = transfer(220, { kind: "pedestrian", durationSeconds: null });
+  const running = { ...walking, durationSeconds: 2 };
+  f.traffic.setData([walking], "live");
+  f.tick(2);
+  const root = f.root(walking.id);
+  let before = root.position.clone();
+  f.tick(.5);
+  assert.ok(Math.abs(root.position.distanceTo(before) - 1.9) < .05);
+  f.traffic.setData([running], "live");
+  before = root.position.clone();
+  f.tick(.5);
+  assert.equal(f.traffic.inspect(walking.id).speed, "Running");
+  assert.ok(Math.abs(root.position.distanceTo(before) - 3.5) < .05);
+
+  const walk = new THREE.AnimationClip("walk", 1, []);
+  const sprint = new THREE.AnimationClip("sprint", 1, []);
+  root.userData.clips = [walk, sprint];
+  const mixer = new THREE.AnimationMixer(root);
+  const oldAction = mixer.clipAction(walk).play();
+  const item = { root, mixer, transfer: running, phase: "onward", speed: 3.8 };
+  refreshTravelerPace(item, walking);
+  assert.equal(oldAction.isRunning(), false);
+  assert.equal(mixer.clipAction(sprint).isRunning(), true);
+  assert.equal(item.speed, 7);
+  mixer.update(.2);
+  refreshTravelerPace(item, running);
+  assert.equal(mixer.clipAction(sprint).time, .2, "repeated same-ID polling must not restart the animation");
+  item.phase = "police";
+  item.speed = 11;
+  item.transfer = walking;
+  refreshTravelerPace(item, running);
+  assert.equal(item.speed, 11, "a carried pedestrian must not set the police vehicle's speed");
+  mixer.stopAllAction();
+  mixer.uncacheRoot(root);
+});

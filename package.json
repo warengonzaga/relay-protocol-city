@@ -1,0 +1,27 @@
+{
+  "name": "relay-city",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A little city powered by crosschain activity.",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "vite build",
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "vite": "8.3.1"
+  },
+  "license": "GPL-3.0-only",
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/warengonzaga/relay-protocol-city.git"
+  }
+}

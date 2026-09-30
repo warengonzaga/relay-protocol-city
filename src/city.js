@@ -6,8 +6,8 @@ import { createTraffic } from "./traffic.js";
 import { chainMark } from "./chain-marks.js";
 import {
   GROUND,
-  configureDistricts,
   getDistrictAt,
+  getDistrict,
   getDistrictBounds,
 } from "./world-map.js";
 
@@ -18,7 +18,6 @@ export async function createCity(
   onError,
   options = {},
 ) {
-  configureDistricts(options.transfers ?? []);
   const bounds = getDistrictBounds();
   const worldDiagonal = Math.hypot(
     bounds.maxX - bounds.minX,
@@ -119,6 +118,9 @@ export async function createCity(
   let previous = 0;
   let disposed = false;
   let pointerDown;
+  let focusedDistrict = null;
+  let cameraTransition = null;
+  let reducedMotion = Boolean(options.reducedMotion);
   let hoverPoint = null;
   let visibleChainId = null;
   const projection = new THREE.Vector3();
@@ -129,40 +131,103 @@ export async function createCity(
   function resize() {
     width = Math.max(1, container.clientWidth);
     height = Math.max(1, container.clientHeight);
-    const aspect = width / height;
+    const area = focusedDistrict?.polygonBounds ?? bounds;
+    const left = area.left ?? area.minX,
+      right = area.right ?? area.maxX;
+    const top = area.top ?? area.minZ,
+      bottom = area.bottom ?? area.maxZ;
     camera.updateMatrixWorld();
     let halfWidth = 0,
       halfHeight = 0;
-    for (const x of [bounds.minX, bounds.maxX])
-      for (const z of [bounds.minZ, bounds.maxZ])
-        for (const y of [GROUND, 22]) {
+    for (const x of [left, right])
+      for (const z of [top, bottom])
+        for (const y of [GROUND, 30]) {
           projection.set(x, y, z).applyMatrix4(camera.matrixWorldInverse);
           halfWidth = Math.max(halfWidth, Math.abs(projection.x));
           halfHeight = Math.max(halfHeight, Math.abs(projection.y));
         }
-    halfHeight = Math.max(halfHeight + 12, (halfWidth + 12) / aspect);
-    camera.left = -halfHeight * aspect;
-    camera.right = halfHeight * aspect;
-    camera.top = halfHeight;
-    camera.bottom = -halfHeight;
+    const narrow = width <= 760;
+    const inset = narrow
+      ? { left: 16, right: 16, top: 155, bottom: 165 }
+      : { left: 340, right: 32, top: 115, bottom: 92 };
+    const usableWidth = Math.max(
+      width * 0.45,
+      width - inset.left - inset.right,
+    );
+    const usableHeight = Math.max(
+      height * 0.36,
+      height - inset.top - inset.bottom,
+    );
+    const scale =
+      (focusedDistrict ? (narrow ? 1 : 0.57) : 1) *
+      Math.max(
+        (halfWidth * 2 + 10) / usableWidth,
+        (halfHeight * 2 + 10) / usableHeight,
+      );
+    const centerX = (inset.left + width - inset.right) / 2;
+    const centerY = (inset.top + height - inset.bottom) / 2;
+    camera.left = -centerX * scale;
+    camera.right = (width - centerX) * scale;
+    camera.top = centerY * scale;
+    camera.bottom = -(height - centerY) * scale;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
   }
-  function reset() {
-    const centerX = (bounds.minX + bounds.maxX) / 2;
-    const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+  function frameDistrict(district, animate = true) {
+    const previousView = {
+      position: camera.position.clone(),
+      target: controls.target.clone(),
+      left: camera.left,
+      right: camera.right,
+      top: camera.top,
+      bottom: camera.bottom,
+      zoom: camera.zoom,
+    };
+    focusedDistrict = district;
+    const area = district?.polygonBounds ?? bounds;
+    const centerX = ((area.left ?? area.minX) + (area.right ?? area.maxX)) / 2;
+    const centerZ = ((area.top ?? area.minZ) + (area.bottom ?? area.maxZ)) / 2;
     camera.position.set(centerX + 125, 160, centerZ + 175);
-    controls.target.set(centerX, 2.5, centerZ);
+    controls.target.set(centerX, 4, centerZ);
     camera.zoom = 1;
     hoverPoint = null;
     visibleChainId = null;
     controls.update();
     resize();
+    if (animate && !reducedMotion) {
+      cameraTransition = {
+        start: performance.now(),
+        from: previousView,
+        to: {
+          position: camera.position.clone(),
+          target: controls.target.clone(),
+          left: camera.left,
+          right: camera.right,
+          top: camera.top,
+          bottom: camera.bottom,
+          zoom: 1,
+        },
+      };
+      camera.position.copy(previousView.position);
+      controls.target.copy(previousView.target);
+      for (const key of ["left", "right", "top", "bottom", "zoom"])
+        camera[key] = previousView[key];
+      camera.updateProjectionMatrix();
+    } else cameraTransition = null;
   }
-  const resizeObserver = new ResizeObserver(resize);
+  function reset() {
+    frameDistrict(null);
+  }
+  function focusChain(id) {
+    const district = getDistrict(Number(id));
+    if (district?.id) frameDistrict(district);
+  }
+  const resizeObserver = new ResizeObserver(() =>
+    frameDistrict(focusedDistrict, false),
+  );
   resizeObserver.observe(container);
   resize();
-  reset();
+  frameDistrict(null, false);
   function render(time) {
     if (disposed) return;
     const dt = previous ? Math.min((time - previous) / 1000, 0.25) : 0;
@@ -171,6 +236,17 @@ export async function createCity(
       // Small physics steps keep light stops and queues stable on slower frames.
       for (let remaining = dt; remaining > 0; remaining -= 0.05)
         traffic.update(Math.min(0.05, remaining));
+      if (cameraTransition) {
+        const progress = Math.min(1, (time - cameraTransition.start) / 460);
+        const eased = 1 - (1 - progress) ** 3;
+        const { from, to } = cameraTransition;
+        camera.position.lerpVectors(from.position, to.position, eased);
+        controls.target.lerpVectors(from.target, to.target, eased);
+        for (const key of ["left", "right", "top", "bottom", "zoom"])
+          camera[key] = THREE.MathUtils.lerp(from[key], to[key], eased);
+        camera.updateProjectionMatrix();
+        if (progress === 1) cameraTransition = null;
+      }
       controls.update();
       if (hoverPoint)
         visibleChainId = districtAtPointer(hoverPoint)?.id ?? null;
@@ -220,6 +296,7 @@ export async function createCity(
       : null;
   }
   const down = (event) => {
+    cameraTransition = null;
     hoverPoint = null;
     visibleChainId = null;
     pointerDown =
@@ -262,8 +339,10 @@ export async function createCity(
       );
       if (!picked) {
         const point = { x: event.clientX, y: event.clientY };
-        visibleChainId = districtAtPointer(point)?.id ?? null;
-        if (event.pointerType !== "touch") hoverPoint = point;
+        const district = districtAtPointer(point);
+        visibleChainId = null;
+        if (district) options.onFocusDistrict?.(district.id);
+        else if (event.pointerType !== "touch") hoverPoint = point;
       }
     }
     pointerDown = null;
@@ -301,19 +380,11 @@ export async function createCity(
     get trackedIds() {
       return traffic.trackedIds;
     },
-    focusChain: (id) => {
-      const label = environment.labels.find((l) => l.chain.id === Number(id));
-      if (label) {
-        hoverPoint = null;
-        visibleChainId = label.chain.id;
-        controls.target.copy(label.position).setY(1);
-        camera.zoom = 1.65;
-        camera.updateProjectionMatrix();
-        controls.update();
-      }
-    },
+    focusChain,
     setPaused: (value) => traffic.setPaused(value),
     setReducedMotion: (value) => {
+      reducedMotion = value;
+      cameraTransition = null;
       controls.enableDamping = !value;
       traffic.setReducedMotion(value);
     },
@@ -325,6 +396,7 @@ export async function createCity(
     select: (id) => traffic.select(id),
     flyover: (transfer) => traffic.flyover(transfer),
     zoom: (amount) => {
+      cameraTransition = null;
       camera.zoom = THREE.MathUtils.clamp(camera.zoom * amount, 0.6, 2.4);
       camera.updateProjectionMatrix();
     },

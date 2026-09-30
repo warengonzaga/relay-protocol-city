@@ -43,10 +43,9 @@
       ></div>
       <div id="chain-labels" aria-hidden="true"></div>
       <section class="intro" aria-labelledby="city-title">
-        <h1 id="city-title">Every chain.<br />One living city.</h1>
-        <p>
-          Twelve districts. Countless journeys.<br />Watch the crosschain world
-          move.
+        <h1 id="city-title">Welcome to<br />Ethereum.</h1>
+        <p id="district-description">
+          One neighborhood at a time.<br />Click a district to step inside.
         </p>
         <div class="mode-line">
           <span class="status-dot"></span
@@ -60,6 +59,9 @@
           </button>
         </div>
       </section>
+      <button id="back-to-city" class="back-to-city" hidden>
+        <span data-icon="arrowLeft"></span>City overview
+      </button>
       <div class="scene-topbar">
         <label class="chain-filter source-filter"
           ><select id="data-view" aria-label="Choose activity source">
@@ -69,8 +71,8 @@
         ></label>
         <label class="chain-filter"
           ><span data-icon="globe"></span
-          ><select id="chain-filter" aria-label="Filter activity by chain">
-            <option value="all">All chains</option></select
+          ><select id="chain-filter" aria-label="Focus a district">
+            <option value="all">City overview</option></select
           ><span data-icon="chevronDown"></span
         ></label>
         <button class="whale-button" id="whale-button">
@@ -82,7 +84,7 @@
         ><select id="scenario" aria-label="Choose a simulated journey">
           <option value="all">City life</option>
           <option value="same-chain">Same-chain sprint</option>
-          <option value="opensea">OpenSea: BNB to Base</option>
+          <option value="opensea">OpenSea: ETH to Base</option>
           <option value="pending">Waiting at the toll</option>
           <option value="failed">Failed: return home</option>
           <option value="blocked">Blocked: police escort</option>
@@ -102,6 +104,36 @@
           ><span class="small-label" id="feed-label">PREVIEW</span>
         </button>
         <div id="activity-body">
+          <div
+            class="district-directions"
+            id="district-directions"
+            role="group"
+            aria-label="Transaction direction"
+            hidden
+          >
+            <button data-direction="all" aria-pressed="true">All</button>
+            <button
+              data-direction="incoming"
+              aria-label="Incoming transactions"
+              aria-pressed="false"
+            >
+              In <span id="incoming-count">0</span>
+            </button>
+            <button
+              data-direction="outgoing"
+              aria-label="Outgoing transactions"
+              aria-pressed="false"
+            >
+              Out <span id="outgoing-count">0</span>
+            </button>
+            <button
+              data-direction="local"
+              aria-label="Local transactions"
+              aria-pressed="false"
+            >
+              Local <span id="local-count">0</span>
+            </button>
+          </div>
           <div class="activity-columns">
             <span>Latest trips</span><span>Transfer value</span>
           </div>
@@ -143,9 +175,9 @@
         </p>
         <div class="tier-guide" id="tier-guide"></div>
         <p class="fine-print" id="district-sizing">
-          District sizes reflect sampled activity and stay fixed while you
-          explore. Hover a district, tap it, or choose a chain to reveal its
-          name.
+          Ethereum is our first hand-designed neighborhood. Base is a small
+          connecting district while we build the city one district at a time.
+          Layout and building sizes are authored, not activity rankings.
         </p>
         <p class="data-explanation" id="data-explanation">
           This preview uses illustrative transactions. Connect a verified Relay
@@ -197,7 +229,7 @@
       </div>
       <div class="camera-hint">
         <span data-icon="orbit"></span
-        ><span>Drag to explore <i>·</i> Scroll to zoom</span>
+        ><span>Click a district <i>·</i> Drag to orbit</span>
       </div>
       <div class="scene-controls" role="group" aria-label="City controls">
         <button

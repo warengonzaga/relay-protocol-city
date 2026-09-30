@@ -6,15 +6,10 @@ import { buildRailway } from "./railway.js";
 import {
   GROUND,
   DISTRICTS,
-  OTHER_DISTRICT,
   CITY_BOUNDS,
   ROAD_SEGMENTS,
   JUNCTIONS,
   SIGNAL_JUNCTIONS,
-  getGate,
-  getAddress,
-  getTowerAddress,
-  getDistrictAt,
   getDistrictApps,
   registerApps,
   getSignalState,
@@ -126,20 +121,17 @@ export function buildEnvironment(scene, models) {
   const labels = [],
     appSigns = new Map(),
     gateLights = new Map();
-  const districts = [...DISTRICTS, OTHER_DISTRICT];
   // Flat, irregular territories read as a map; streets remain part of each district.
   const drawnBorders = new Set();
-  for (const district of districts) {
-    const chain = district.id
-      ? getChain(district.id)
-      : { id: 0, name: "Other chains", color: "#9a99aa" };
+  for (const district of DISTRICTS) {
+    const chain = getChain(district.id);
     const polygon = district.polygon;
     const shape = new THREE.Shape(
       polygon.map(({ x, z }) => new THREE.Vector2(x, -z)),
     );
     const color = new THREE.Color("#293a37").lerp(
       new THREE.Color(chain.color),
-      0.19,
+      0.05,
     );
     const territory = new THREE.Mesh(
       new THREE.ShapeGeometry(shape),
@@ -320,114 +312,125 @@ export function buildEnvironment(scene, models) {
     );
   }
 
-  for (const [index, district] of districts.entries()) {
-    const { x, z, bounds, roadZ } = district;
-    const chain = district.id
-      ? getChain(district.id)
-      : { id: 0, name: "Other chains", color: "#9a99aa" };
-    for (const role of ["origin", "destination"]) {
-      const address = getAddress(district.id, { kind: "relay" }, role);
-      if (!district.id && role === "destination") continue;
-      place(
-        role === "origin" ? "building-type-a" : "building-type-c",
+  // Buildings and gardens are authored alongside their actual street addresses.
+  // The renderer never invents a new lot or attributes a building to an unseen app.
+  for (const district of DISTRICTS) {
+    const chain = getChain(district.id);
+    const updates = new Map();
+    for (const site of district.sites) {
+      const address = site.address;
+      const building = place(
+        site.model,
         address.x,
         address.z,
-        5,
-        0,
-        "x",
+        site.height,
+        site.rotation ?? 0,
+        "y",
+        GROUND + 0.22,
       );
-      driveway(address);
-      driveway(address, false);
-    }
-    const updates = [];
-    if (district.id) {
-      for (const slot of [0, 1]) {
-        const address = getTowerAddress(district.id, slot);
-        const height = 8 + ((index + slot) % 3) * 1.6;
-        const building = place(
-          ["building-g", "building-b", "building-f", "building-d"][
-            (index + slot) % 4
-          ],
-          address.x,
-          address.z,
-          height,
+      const fit = Math.min(
+        1,
+        site.maxWidth / building.userData.width,
+        site.maxDepth / building.userData.length,
+      );
+      building.scale.multiplyScalar(fit);
+      building.userData.siteId = site.id;
+      building.userData.chainId = district.id;
+      const width = building.userData.width * fit,
+        depth = building.userData.length * fit,
+        height = building.userData.height * fit;
+      box(
+        address.x,
+        0.75,
+        address.z,
+        width + 0.5,
+        0.14,
+        depth + 0.5,
+        "#666673",
+        0.1,
+      );
+      if (address.garage) driveway(address);
+      if (address.door) {
+        driveway(address, false);
+        const facade =
+          address.z + (Math.sign(address.road.z - address.z) * depth) / 2;
+        box(
+          address.door.x,
+          0.84,
+          (facade + address.door.z) / 2,
+          1.25,
+          0.07,
+          Math.abs(address.door.z - facade) + 0.1,
+          "#878792",
         );
-        building.scale.x *= Math.min(1, 6 / building.userData.width);
-        building.scale.z *= Math.min(1, 5.7 / building.userData.length);
+      }
+      if (site.role === "scenery" || site.role === "relay") continue;
+      const frontage = Math.sign(address.road.z - address.z) || 1;
+      const signZ = address.z + frontage * (depth / 2 + 0.16);
+      if (site.role === "integrator") {
         box(
           address.x,
-          GROUND + height + 0.18,
+          GROUND + 0.22 + height + 0.13,
           address.z,
-          Math.min(building.userData.width, 6),
-          0.32,
-          Math.min(building.userData.length, 5.7),
+          width,
+          0.2,
+          depth,
           chain.color,
-          0.06,
+          0.04,
           true,
         );
-        driveway(address);
-        driveway(address, false);
-        updates.push(sign("App tower", address.x, 3.4, address.z + 3.1, 5.7));
-      }
-      appSigns.set(district.id, updates);
-      const common = getAddress(district.id, { kind: "unknown" });
-      place("building-c", common.x, common.z, 4.3);
-      sign("App commons", common.x, 4.5, common.z + 2.6, 5.4);
-      driveway(common);
-      driveway(common, false);
-    }
-    const police = district.police;
-    place("building-a", police.x, police.z, 4.5);
-    sign("POLICE", police.x, 4.5, police.z + 2.7, 5.2);
-    driveway(police);
-    box(police.x - 0.6, 5.2, police.z, 0.95, 0.25, 0.6, "#548bff", 0.08, true);
-    box(police.x + 0.6, 5.2, police.z, 0.95, 0.25, 0.6, "#ff505d", 0.08, true);
-
-    // Extra width becomes actual neighborhood blocks, not an empty larger plot.
-    if (bounds.right - bounds.left > 60) {
-      for (const side of [-1, 1]) {
-        const localX = x + side * ((bounds.right - bounds.left) / 2 - 16);
-        place("building-type-c", localX, z - 3, 4.5, 0, "x");
-        box(localX, 0.86, z + 3.8, 1.3, 0.06, 7.5, "#878792");
-      }
-    }
-    for (const dx of [-4, 4])
-      place("tree-small", x + dx, z + 4, 3.1, index * 0.4);
-    // The broad irregular edges become small green spaces around the street core.
-    let planted = 0;
-    const fringe = district.polygonBounds;
-    for (let parkZ = fringe.top + 5; parkZ < fringe.bottom - 3; parkZ += 9) {
-      for (let parkX = fringe.left + 5; parkX < fringe.right - 3; parkX += 11) {
-        if (
-          planted >= 8 ||
-          (parkZ > bounds.top - 3 && parkZ < bounds.bottom + 3)
-        )
-          continue;
-        if (
-          ![-2, 2].every((dx) =>
-            [-2, 2].every(
-              (dz) => getDistrictAt(parkX + dx, parkZ + dz)?.id === district.id,
-            ),
-          )
-        )
-          continue;
-        place(
-          "tree-small",
-          parkX,
-          parkZ,
-          2.7 + (planted % 3) * 0.35,
-          index + planted,
+        updates.set(
+          site.slot,
+          sign("App building", address.x, 2.9, signZ, Math.min(7, width + 1)),
         );
-        planted++;
+      } else if (site.role === "commons") {
+        sign("App commons", address.x, 3.4, signZ, 6.2);
+      } else if (site.role === "police") {
+        sign("POLICE", address.x, 3.5, signZ, 5.4);
+        for (const [side, color] of [
+          [-1, "#548bff"],
+          [1, "#ff505d"],
+        ])
+          box(
+            address.x + side * 0.6,
+            GROUND + 0.22 + height + 0.13,
+            address.z,
+            0.95,
+            0.25,
+            0.6,
+            color,
+            0.06,
+            true,
+          );
       }
     }
-    for (const dx of [-7, 7]) {
-      place("light-curved", x + dx, roadZ + 5.6, 4, Math.PI);
-      box(x + dx, 4.5, roadZ + 5.2, 0.45, 0.12, 0.65, "#f4d39c", 0.02, true);
+    appSigns.set(district.id, updates);
+    for (const park of district.parks) {
+      box(park.x, 0.78, park.z, park.width, 0.12, park.depth, "#48694f", 0.35);
+      for (const tree of park.trees)
+        place(
+          tree.model ?? "tree-small",
+          tree.x,
+          tree.z,
+          tree.size,
+          tree.rotation ?? 0,
+          "y",
+          0.84,
+        );
     }
+    // One two-way checkpoint serves each neighborhood, including its inspection bays.
+    const gate = district.gate;
     const bay = district.bay;
     box(bay.x, 0.82, bay.z, 6.5, 0.11, 5.8, "#454555", 0.15);
-    box(bay.x, 0.825, (bay.z + roadZ) / 2, 2.8, 0.12, roadZ - bay.z, "#454555");
+    box(
+      bay.x,
+      0.825,
+      (bay.z + gate.z) / 2,
+      2.8,
+      0.12,
+      Math.abs(gate.z - bay.z),
+      "#454555",
+    );
     box(
       district.walkBay.x,
       0.88,
@@ -440,47 +443,26 @@ export function buildEnvironment(scene, models) {
     );
     for (const edge of [-2.8, 2.8])
       box(bay.x + edge, 0.9, bay.z, 0.1, 0.05, 5.3, "#e6c486");
-    for (const gate of district.gates) {
-      for (const dz of [-6.6, 6.6])
-        box(gate.x, 3.15, roadZ + dz, 0.7, 5.1, 0.7, "#878398", 0.08);
-      box(gate.x, 5.85, roadZ, 0.95, 0.45, 14, chain.color, 0.1, true);
-      box(
-        gate.x + (gate.side === "east" ? -2 : 2),
-        1.7,
-        roadZ + 8,
-        2.6,
-        2.1,
-        2.5,
-        "#545265",
-        0.15,
-      );
-      sign("RELAY", gate.x, 6.8, roadZ + 0.3, 5.6);
-      const lamp = box(
-        gate.x,
-        5.35,
-        roadZ + 6.6,
-        0.52,
-        0.52,
-        0.52,
-        "#6ddbaf",
-        0.08,
-        true,
-      );
-      if (gate.side === getGate(district.id).side)
-        gateLights.set(district.id, lamp);
-    }
+    for (const dz of [-6.6, 6.6])
+      box(gate.x, 3.15, gate.z + dz, 0.7, 5.1, 0.7, "#878398", 0.08);
+    box(gate.x, 5.85, gate.z, 0.95, 0.45, 14, chain.color, 0.1, true);
+    box(
+      gate.x + (gate.side === "east" ? -2 : 2),
+      1.7,
+      gate.z + 8,
+      2.6,
+      2.1,
+      2.5,
+      "#545265",
+      0.15,
+    );
+    sign("RELAY", gate.x, 6.8, gate.z + 0.3, 5.6);
+    gateLights.set(
+      district.id,
+      box(gate.x, 5.35, gate.z + 6.6, 0.52, 0.52, 0.52, "#6ddbaf", 0.08, true),
+    );
   }
 
-  const highway = ROAD_SEGMENTS.filter(
-    (road) =>
-      road.neutral && road.z1 === road.z2 && Math.abs(road.x2 - road.x1) > 100,
-  ).sort((a, b) => b.z1 - a.z1)[0];
-  if (highway) {
-    const x = (highway.x1 + highway.x2) / 2,
-      z = highway.z1 + 8;
-    box(x, 1.65, z, 0.25, 2.1, 0.25, "#aaa3b8");
-    sign("CITY HIGHWAY", x, 3, z, 12);
-  }
   buildRailway({ group, box, material, sign });
   const signals = [];
   for (const { x, z } of SIGNAL_JUNCTIONS) {
@@ -583,8 +565,10 @@ export function buildEnvironment(scene, models) {
         const apps = getDistrictApps(district.id);
         appSigns
           .get(district.id)
-          ?.forEach((update, index) =>
-            update(apps[index]?.name ?? "App tower"),
+          ?.forEach((update, slot) =>
+            update(
+              apps.find((app) => app.slot === slot)?.name ?? "App building",
+            ),
           );
       }
     },

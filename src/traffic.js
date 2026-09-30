@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { getDistrictTrips } from "./activity.js";
 import {
   groundRoute,
   roadReturnRoute,
@@ -502,6 +503,7 @@ export function createTraffic(scene, models, environment, onSelect) {
 
   return {
     setData(transfers, sourceMode, reset = false) {
+      transfers = getDistrictTrips(transfers);
       if (sourceMode !== mode || reset) clear();
       mode = sourceMode;
       environment.setApps?.(transfers);
@@ -588,7 +590,7 @@ export function createTraffic(scene, models, environment, onSelect) {
         });
     },
     flyover(transfer) {
-      if (mode !== "demo") return false;
+      if (mode !== "demo" || !getDistrictTrips([transfer]).length) return false;
       active
         .filter((item) => item.transfer.kind === "airplane")
         .forEach(remove);

@@ -16,7 +16,7 @@ const noop = () => {};
 const transfer = (number, changes = {}) => ({
   id: `0x${number.toString(16).padStart(64, "0")}`,
   originChainId: 8453,
-  destinationChainId: 56,
+  destinationChainId: 1,
   kind: "car",
   amountUsd: 500,
   stage: "gate",
@@ -108,7 +108,7 @@ test("opposing trains share separate lanes and a third waits until its tunnel is
   const first = transfer(1, { kind: "train" });
   const opposite = transfer(2, {
     kind: "train",
-    originChainId: 56,
+    originChainId: 1,
     destinationChainId: 8453,
   });
   const queued = transfer(3, { kind: "train" });
@@ -374,14 +374,14 @@ test("confirmed trips pass the border without checkpoint dwell in live and demo 
 test("a pending border check does not trap a confirmed trip in the through lane", (t) => {
   const f = fixture(t);
   for (const [index, kind] of ["pedestrian", "car"].entries()) {
-    const pending = transfer(310 + index * 2, { kind, originChainId: 137 });
+    const pending = transfer(310 + index * 2, { kind, originChainId: 8453 });
     const confirmed = transfer(311 + index * 2, {
       kind,
-      originChainId: 137,
+      originChainId: 8453,
       stage: "complete",
     });
     const checks = [
-      transfer(1300 + index * 2, { kind, originChainId: 137 }),
+      transfer(1300 + index * 2, { kind, originChainId: 8453 }),
       pending,
     ];
     f.traffic.setData(checks, "live", true);
@@ -622,7 +622,7 @@ test("bounded request tracking rotates across active and queued unresolved IDs",
 test("checks sharing an origin remain tracked off the through lane and drain after confirmed releases", (t) => {
   const f = fixture(t);
   const requests = [80, 81, 82].map((number) =>
-    transfer(number, { originChainId: 137 }),
+    transfer(number, { originChainId: 8453 }),
   );
   f.traffic.setData(requests, "live");
   f.until(
@@ -652,41 +652,32 @@ test("checks sharing an origin remain tracked off the through lane and drain aft
   );
 });
 
-test("different unknown chains reserve the same Other chains inspection bay", (t) => {
+test("unsupported chains are ignored at the traffic boundary without wrong-district aliases", (t) => {
   const f = fixture(t);
   const requests = [10001, 10002].map((originChainId, index) =>
     transfer(340 + index, { originChainId }),
   );
   f.traffic.setData(requests, "live");
+  f.tick(5);
+  assert.equal(f.traffic.count, 0);
+  assert.equal(f.traffic.stats.queued, 0);
+  assert.deepEqual(f.traffic.trackedIds, []);
+  f.traffic.setData([...requests, transfer(342)], "live");
   f.until(
     () => f.traffic.stats.gates === 1,
-    "one unknown-chain request must reach the shared bay",
+    "a supported request must still reach its real district",
   );
-  f.tick(30);
-  assert.equal(f.traffic.count, 1);
+  f.tick();
+  assert.deepEqual(f.pendingDistricts, [8453]);
+  f.traffic.setData(requests, "demo", true);
   assert.equal(
-    f.traffic.stats.queued,
-    1,
-    "a second unknown chain must not enter the occupied physical bay",
+    f.traffic.flyover(
+      transfer(343, { originChainId: 10001, kind: "airplane" }),
+    ),
+    false,
   );
-  assert.deepEqual(
-    f.pendingDistricts,
-    [0],
-    "unknown-chain checks must light the shared Other district gate",
-  );
-  assert.deepEqual(
-    new Set(f.traffic.trackedIds),
-    new Set(requests.map((request) => request.id)),
-  );
-  f.traffic.setData(
-    requests.map((request) => ({ ...request, stage: "complete" })),
-    "live",
-  );
-  f.until(
-    () => f.traffic.count === 0 && f.traffic.stats.queued === 0,
-    "both unknown-chain trips must complete after confirmation",
-    150,
-  );
+  f.tick(5);
+  assert.equal(f.traffic.count, 0);
 });
 
 test("the shipped pending demo reaches its checkpoints with mixed cars and walkers", (t) => {
@@ -709,7 +700,7 @@ test("the shipped pending demo reaches its checkpoints with mixed cars and walke
 test("a failed lead car returns without trapping the following origin queue", (t) => {
   const f = fixture(t);
   const requests = [90, 91, 92].map((number) =>
-    transfer(number, { originChainId: 137 }),
+    transfer(number, { originChainId: 8453 }),
   );
   f.traffic.setData(requests, "live");
   f.until(
@@ -735,7 +726,7 @@ test("a failed lead car returns without trapping the following origin queue", (t
 test("a car failing after departure avoids the lane occupied by its followers", (t) => {
   const f = fixture(t);
   const requests = [95, 96, 97].map((number) =>
-    transfer(number, { originChainId: 137 }),
+    transfer(number, { originChainId: 8453 }),
   );
   f.traffic.setData(requests, "live");
   f.until(

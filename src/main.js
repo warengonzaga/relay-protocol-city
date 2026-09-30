@@ -1,7 +1,13 @@
 import "./style.css";
 import "./journey-ui.css";
 import "./responsive.css";
-import { CHAIN_CONFIG, createDemoTransfers, getChain } from "./activity.js";
+import {
+  CHAIN_CONFIG,
+  CITY_CHAIN_IDS,
+  createDemoTransfers,
+  getChain,
+  getDistrictTrips,
+} from "./activity.js";
 import { createCity } from "./city.js";
 import { chainMark } from "./chain-marks.js";
 import { icon, hydrateIcons } from "./icons.js";
@@ -46,6 +52,7 @@ let demoSource = {
     "This is an illustrative city. Demo trips replay continuously so you can explore all six kinds of traffic. Choose Relay activity to use the connected feed.",
 };
 let filter = "all";
+let direction = "all";
 let refreshTimer;
 let toastTimer;
 let disposed = false;
@@ -252,7 +259,7 @@ function selectScenario() {
     transfers = transfers.filter(
       (t) =>
         t.app?.key === "opensea" &&
-        t.originChainId === 56 &&
+        t.originChainId === 1 &&
         t.destinationChainId === 8453,
     );
   else if (scenario === "trains")
@@ -269,17 +276,32 @@ function selectScenario() {
     ) &&
     transfers[0]
   )
-    city?.focusChain(transfers[0].originChainId);
-  else city?.reset();
+    focusDistrict(transfers[0].originChainId);
+  else focusDistrict(filter);
 }
 
 function renderActivity() {
-  const transfers = current.transfers.filter(matches);
+  const districtTransfers = getDistrictTrips(current.transfers, filter);
+  const transfers = getDistrictTrips(current.transfers, filter, direction);
+  $("district-directions").hidden = filter === "all";
+  $("activity-heading").textContent =
+    filter === "all" ? "City activity" : `${getChain(filter).name} activity`;
+  for (const value of ["incoming", "outgoing", "local"])
+    $(`${value}-count`).textContent = getDistrictTrips(
+      current.transfers,
+      filter,
+      value,
+    ).length;
+  for (const button of $("district-directions").querySelectorAll("button"))
+    button.setAttribute(
+      "aria-pressed",
+      String(button.dataset.direction === direction),
+    );
   const list = $("activity-list");
   const focusedId =
     document.activeElement?.closest("[data-transfer]")?.dataset.transfer;
   list.replaceChildren();
-  for (const transfer of transfers.slice(0, 4)) {
+  for (const transfer of transfers.slice(0, filter === "all" ? 4 : 12)) {
     const item = document.createElement("li");
     const button = document.createElement("button");
     button.className = "trip-row";
@@ -292,10 +314,19 @@ function renderActivity() {
     arrow.className = "route-arrow";
     arrow.textContent = "→";
     route.append(arrow, document.createTextNode(transfer.destinationSymbol));
+    const journeyDirection =
+      filter === "all"
+        ? ""
+        : transfer.originChainId === transfer.destinationChainId
+          ? "Local · "
+          : transfer.destinationChainId === Number(filter)
+            ? "Incoming · "
+            : "Outgoing · ";
     button.querySelector(".trip-age").textContent =
-      current.mode === "demo"
+      journeyDirection +
+      (current.mode === "demo"
         ? `${transfer.app?.name ?? "Unknown app"} · ${transfer.demoScenario ?? "success"} demo`
-        : `${transfer.app?.name ?? "Unknown app"} · ${stageName(transfer)}`;
+        : `${transfer.app?.name ?? "Unknown app"} · ${stageName(transfer)}`);
     button.querySelector(".trip-value").textContent = amount(
       transfer.amountUsd,
       true,
@@ -312,21 +343,27 @@ function renderActivity() {
   if (!transfers.length) {
     const empty = document.createElement("li");
     empty.className = "empty-feed";
-    empty.textContent = "No trips for this chain in the latest sample.";
+    empty.textContent =
+      direction === "all"
+        ? "No Ethereum–Base or local trips in this sample yet."
+        : `No ${direction} trips in this sample yet.`;
     list.append(empty);
   }
-  $("trip-count").textContent = transfers.length;
-  const known = transfers.filter((row) => row.amountUsd !== null);
+  $("trip-count").textContent = districtTransfers.length;
+  const known = districtTransfers.filter((row) => row.amountUsd !== null);
   $("scene-volume").textContent = known.length
     ? compactMoney.format(known.reduce((sum, row) => sum + row.amountUsd, 0))
     : "—";
   $("chain-count").textContent = new Set(
-    transfers.flatMap((row) => [row.originChainId, row.destinationChainId]),
+    districtTransfers.flatMap((row) => [
+      row.originChainId,
+      row.destinationChainId,
+    ]),
   ).size;
   $("volume-label").textContent =
     current.mode === "demo"
       ? "demo value"
-      : known.length < transfers.length
+      : known.length < districtTransfers.length
         ? "known sample value"
         : "sample value";
 }
@@ -341,8 +378,8 @@ function renderMode() {
   $("mode-label").parentElement.classList.toggle("live", live);
   $("feed-label").textContent = live ? "RECENT SAMPLE" : "PREVIEW";
   $("feed-note").textContent = live
-    ? "Latest confirmed stages. Sampled activity, not a daily total."
-    : "Simulation · use Try a journey to explore outcomes";
+    ? "Ethereum–Base and local trips only. Recent sample, not a daily total."
+    : "Simulated Ethereum–Base and local trips. No real funds.";
   $("footer-mode").textContent = live ? "RECENT ACTIVITY" : "ILLUSTRATIVE CITY";
   $("data-explanation").textContent = [current.notice, current.trackingNotice]
     .filter(Boolean)
@@ -404,23 +441,8 @@ function applySource(reset = false) {
     $("data-view").value === "demo"
       ? demoSource
       : (connectedSource ?? demoSource);
-  const ids = new Set([
-    ...CHAIN_CONFIG.map((chain) => chain.id),
-    ...current.transfers.flatMap((row) => [
-      row.originChainId,
-      row.destinationChainId,
-    ]),
-  ]);
-  const existing = new Set(
-    [...$("chain-filter").options].map((option) => option.value),
-  );
-  for (const id of ids)
-    if (!existing.has(String(id))) {
-      const option = document.createElement("option");
-      option.value = id;
-      option.textContent = getChain(id).name;
-      $("chain-filter").append(option);
-    }
+  // Both endpoints must have an authored district. Never remap an unsupported chain.
+  current = { ...current, transfers: getDistrictTrips(current.transfers) };
   renderMode();
   renderActivity();
   city?.setData(current.transfers, current.mode, reset);
@@ -481,19 +503,45 @@ document.querySelector(".skip-link").addEventListener("click", (event) => {
   $("activity-list").focus();
   $("activity-list").scrollIntoView({ block: "nearest" });
 });
-$("city-tab").addEventListener("click", () => {
-  $("info-panel").hidden = true;
+function focusDistrict(id) {
+  filter = id === "all" ? "all" : String(id);
+  direction = "all";
+  const focused = filter !== "all";
+  $("chain-filter").value = filter;
+  $("city-app").classList.toggle("district-focused", focused);
+  $("back-to-city").hidden = !focused;
+  $("city-title").textContent = focused ? getChain(filter).name : "Relay City";
+  $("district-description").textContent = focused
+    ? Number(filter) === 1
+      ? "Our first hand-designed neighborhood."
+      : "A connection point. Its neighborhood is next."
+    : "Two districts. One shared highway. Click to explore.";
   $("trip-inspector").hidden = true;
-  city?.reset();
-});
-$("chain-filter").addEventListener("change", (event) => {
-  filter = event.target.value;
+  $("info-panel").hidden = true;
+  selectedId = null;
+  city?.select(null);
   city?.setFilter(filter);
-  if (filter !== "all") city?.focusChain(filter);
+  if (focused) city?.focusChain(filter);
   else city?.reset();
   renderActivity();
   renderMode();
-  $("trip-inspector").hidden = true;
+}
+for (const id of CITY_CHAIN_IDS) {
+  const option = document.createElement("option");
+  option.value = id;
+  option.textContent = getChain(id).name;
+  $("chain-filter").append(option);
+}
+$("city-tab").addEventListener("click", () => focusDistrict("all"));
+$("back-to-city").addEventListener("click", () => focusDistrict("all"));
+$("chain-filter").addEventListener("change", (event) =>
+  focusDistrict(event.target.value),
+);
+$("district-directions").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-direction]");
+  if (!button) return;
+  direction = button.dataset.direction;
+  renderActivity();
 });
 $("data-view").addEventListener("change", () => {
   selectedId = null;
@@ -505,7 +553,7 @@ $("release-gates").addEventListener("click", () => city?.releasePending());
 $("pause-button").addEventListener("click", () => setPaused(!paused));
 $("zoom-in").addEventListener("click", () => city?.zoom(1.2));
 $("zoom-out").addEventListener("click", () => city?.zoom(1 / 1.2));
-$("reset-camera").addEventListener("click", () => city?.reset());
+$("reset-camera").addEventListener("click", () => focusDistrict("all"));
 $("activity-toggle").addEventListener("click", toggleActivity);
 $("whale-button").addEventListener("click", () => {
   if (current.mode !== "demo" || !city) return;
@@ -542,7 +590,6 @@ $("flight-bearings").textContent = CHAIN_CONFIG.map(
 uiTimer = setInterval(refreshOperations, 400);
 await loadActivity();
 try {
-  const layoutSource = current;
   city = await createCity(
     $("world"),
     $("chain-labels"),
@@ -552,16 +599,13 @@ try {
       $("scene-error").querySelector("p").textContent = error.message;
     },
     {
-      transfers: layoutSource.transfers,
       reducedMotion: motionPreference.matches,
+      onFocusDistrict: focusDistrict,
     },
   );
-  $("district-sizing").textContent =
-    layoutSource.mode === "demo"
-      ? "District sizes use the illustrative trips loaded with this city. Hover a district, tap it, or choose a chain to see its name. Sizes stay fixed until reload."
-      : "District sizes use unique requests touching each chain in the sample loaded with this city. Sizes are bounded for readability and stay fixed until reload; they are not network-wide market shares. Hover, tap, or choose a chain to see its name.";
   city.setPaused(paused);
   city.setData(current.transfers, current.mode);
+  focusDistrict(1);
   $("loading-scene").hidden = true;
 } catch (error) {
   console.error("Relay City:", error);

@@ -4,13 +4,12 @@ import {
   DISTRICTS,
   ROAD_SEGMENTS,
   JUNCTIONS,
-  OTHER_DISTRICT,
   SIGNAL_JUNCTIONS,
-  configureDistricts,
   getDistrictAt,
   getDistrictBounds,
   createRailCurve,
   getAddress,
+  getTowerAddress,
   getDistrict,
   getStationProgress,
   getSignalState,
@@ -27,6 +26,14 @@ import {
 } from "../src/routes.js";
 
 const relay = { key: "relay", name: "Relay", kind: "relay" };
+const integrators = [
+  "opensea",
+  "test-app-b",
+  "test-app-c",
+  "test-app-d",
+  "test-app-e",
+  "test-app-f",
+].map((key) => ({ key, name: key, kind: "integrator" }));
 const close = (actual, expected, message) =>
   assert.ok(
     Math.abs(actual - expected) < 0.02,
@@ -38,52 +45,66 @@ const sample = (curve, count = 250) =>
     tangent: curve.getTangentAt(index / count),
   }));
 
-test("district areas follow unique chain touches across all rows and freeze until reload", () => {
-  const transfers = [
-    ...Array.from({ length: 24 }, (_, i) => ({
-      id: `eth-${i}`,
-      originChainId: 1,
-      destinationChainId: 1,
-    })),
-    ...Array.from({ length: 6 }, (_, i) => ({
-      id: `base-bnb-${i}`,
-      originChainId: 8453,
-      destinationChainId: 56,
-    })),
-  ];
-  assert.equal(configureDistricts([...transfers, transfers[0]]), true);
-  assert.equal(
-    getDistrict(1).activityCount,
-    24,
-    "same-chain touches and repeated IDs count once",
+test("the authored city has a detailed Ethereum neighborhood and compact Base connection", () => {
+  assert.deepEqual(
+    DISTRICTS.map((d) => d.id),
+    [1, 8453],
   );
-  assert.equal(getDistrict(56).activityCount, 6);
-  assert.equal(
-    getDistrict(8453).width,
-    getDistrict(56).width,
-    "equal activity means equal core width across rows",
-  );
-  assert.ok(getDistrict(1).width > getDistrict(56).width);
-  const before = JSON.stringify(DISTRICTS);
-  assert.equal(configureDistricts([], { 56: 999 }), false);
-  assert.equal(JSON.stringify(DISTRICTS), before);
-  for (const d of [...DISTRICTS, OTHER_DISTRICT]) {
+  const eth = getDistrict(1),
+    base = getDistrict(8453);
+  const streetLength = (d) =>
+    d.localRoads.reduce(
+      (sum, [x1, z1, x2, z2]) => sum + Math.hypot(x2 - x1, z2 - z1),
+      0,
+    );
+  assert.ok(streetLength(eth) > streetLength(base) * 2);
+  assert.ok(eth.sites.length >= 24);
+  assert.equal(eth.sites.filter((s) => s.role === "integrator").length, 5);
+  assert.equal(base.sites.filter((s) => s.role === "integrator").length, 1);
+  for (const d of DISTRICTS) {
     assert.equal(getDistrictAt(d.x, d.z), d);
+    assert.equal(
+      d.gates.length,
+      1,
+      "one gate serves both arrival and departure",
+    );
     assert.ok(d.roadZ > d.bounds.top + 5 && d.roadZ < d.bounds.bottom - 5);
     assert.ok(d.loop.left > d.bounds.left && d.loop.right < d.bounds.right);
+    for (const site of d.sites) {
+      assert.equal(getDistrictAt(site.address.x, site.address.z), d);
+      for (const x of [site.x - site.maxWidth / 2, site.x + site.maxWidth / 2])
+        for (const z of [
+          site.z - site.maxDepth / 2,
+          site.z + site.maxDepth / 2,
+        ])
+          assert.equal(
+            getDistrictAt(x, z),
+            d,
+            `${site.id} footprint leaves district`,
+          );
+      if (site.role === "scenery") continue;
+      const port = site.address;
+      assert.ok(
+        ROAD_SEGMENTS.some(
+          (s) =>
+            s.z1 === s.z2 &&
+            s.z1 === port.road.z &&
+            port.road.x >= s.x1 &&
+            port.road.x <= s.x2,
+        ),
+        `${site.id} driveway must meet a real street`,
+      );
+    }
   }
   assert.equal(getDistrictAt(999, 999), null);
   assert.ok(SIGNAL_JUNCTIONS.length < JUNCTIONS.length);
   assert.ok(SIGNAL_JUNCTIONS.every((j) => JUNCTIONS.includes(j)));
   const bounds = getDistrictBounds();
-  assert.ok(
-    bounds.minX < OTHER_DISTRICT.bounds.left &&
-      bounds.maxX > Math.max(...DISTRICTS.map((d) => d.bounds.right)),
-  );
+  assert.ok(bounds.minX < eth.bounds.left && bounds.maxX > base.bounds.right);
 });
 
 test("irregular territories leave the shared highways and their sidewalks unowned", () => {
-  for (const d of [...DISTRICTS, OTHER_DISTRICT]) {
+  for (const d of DISTRICTS) {
     assert.ok(d.polygon.length >= 6);
     assert.ok(
       d.polygon.filter(
@@ -97,13 +118,6 @@ test("irregular territories leave the shared highways and their sidewalks unowne
       null,
       "cut corners must not behave like bounding rectangles",
     );
-    for (const x of [d.bounds.left + 0.1, d.x, d.bounds.right - 0.1])
-      for (const z of [d.bounds.top + 0.1, d.z, d.bounds.bottom - 0.1])
-        assert.equal(
-          getDistrictAt(x, z),
-          d,
-          "street/building core stays inside its territory",
-        );
     for (const gate of d.gates) {
       assert.equal(getDistrictAt(gate.x, gate.z), d);
       assert.equal(
@@ -130,8 +144,8 @@ test("irregular territories leave the shared highways and their sidewalks unowne
 
 test("cross-chain trips and failed returns use neutral roads without entering a third district", () => {
   for (const kind of ["pedestrian", "car"])
-    for (const origin of [...DISTRICTS, OTHER_DISTRICT])
-      for (const destination of [...DISTRICTS, OTHER_DISTRICT]) {
+    for (const origin of DISTRICTS)
+      for (const destination of DISTRICTS) {
         const transfer = {
           originChainId: origin.id,
           destinationChainId: destination.id,
@@ -183,8 +197,8 @@ test("cross-chain trips and failed returns use neutral roads without entering a 
 
 test("every district route returns home for swaps and reaches the correct cross-chain address", () => {
   for (const kind of ["pedestrian", "car"])
-    for (const origin of [...DISTRICTS, OTHER_DISTRICT])
-      for (const destination of [...DISTRICTS, OTHER_DISTRICT]) {
+    for (const origin of DISTRICTS)
+      for (const destination of DISTRICTS) {
         const route = groundRoute({
           originChainId: origin.id,
           destinationChainId: destination.id,
@@ -213,24 +227,28 @@ test("every district route returns home for swaps and reaches the correct cross-
 });
 
 test("walking routes and late reversals stay on marked junction sidewalks", () => {
-  const integrator = { key: "opensea", kind: "integrator", name: "OpenSea" };
   registerApps(
-    DISTRICTS.map((d) => ({
-      app: integrator,
-      originChainId: d.id,
-      destinationChainId: 56,
+    integrators.map((app) => ({
+      app,
+      originChainId: 1,
+      destinationChainId: 8453,
     })),
   );
-  for (const app of [relay, integrator, { kind: "unknown" }])
-    for (const origin of [...DISTRICTS, OTHER_DISTRICT])
-      for (const destination of [...DISTRICTS, OTHER_DISTRICT]) {
+  for (const app of [relay, ...integrators, { kind: "unknown" }])
+    for (const origin of DISTRICTS)
+      for (const destination of DISTRICTS) {
         const route = groundRoute({
           originChainId: origin.id,
           destinationChainId: destination.id,
           app,
           kind: "pedestrian",
         });
-        const curves = [route.onward];
+        const curves = [
+          route.depart,
+          route.onward,
+          route.hold,
+          route.returnFromHold,
+        ];
         for (const progress of [0.2, 0.65, 0.98]) {
           const reversed = reversePath(route.onward, progress);
           close(
@@ -290,20 +308,27 @@ test("walking routes and late reversals stay on marked junction sidewalks", () =
       }
 });
 
-test("cars use right-hand lanes on the rendered variable-width street network", () => {
-  for (const app of [
-    relay,
-    { key: "opensea", kind: "integrator" },
-    { kind: "unknown" },
-  ])
-    for (const origin of [...DISTRICTS, OTHER_DISTRICT])
-      for (const destination of [...DISTRICTS, OTHER_DISTRICT]) {
-        const route = groundRoute({
+test("cars use right-hand lanes on the authored street network", () => {
+  for (const app of [relay, ...integrators, { kind: "unknown" }])
+    for (const origin of DISTRICTS)
+      for (const destination of DISTRICTS) {
+        const transfer = {
           originChainId: origin.id,
           destinationChainId: destination.id,
           app,
           kind: "car",
-        });
+        };
+        const route = groundRoute(transfer);
+        const lateReturn = roadReturnRoute(
+          transfer,
+          route.onward.getPointAt(0.65),
+          route.onward.getTangentAt(0.65),
+          true,
+        );
+        assert.ok(
+          lateReturn.getPointAt(1).distanceTo(route.hold.getPointAt(0)) < 0.001,
+          "blocked returns must meet the inspection route without a teleport",
+        );
         for (const { point: p, tangent: t } of sample(route.onward, 150)) {
           if (
             JUNCTIONS.some(
@@ -334,11 +359,11 @@ test("cars use right-hand lanes on the rendered variable-width street network", 
 });
 
 test("only onward routes cross origin borders and inspection bays clear the through lane", () => {
-  for (const d of [...DISTRICTS, OTHER_DISTRICT]) {
+  for (const d of DISTRICTS) {
     for (const kind of ["pedestrian", "car"]) {
       const transfer = {
         originChainId: d.id,
-        destinationChainId: d.id === 56 ? 8453 : 56,
+        destinationChainId: d.id === 1 ? 8453 : 1,
         app: relay,
         kind,
       };
@@ -390,31 +415,37 @@ test("only onward routes cross origin borders and inspection bays clear the thro
   }
 });
 
-test("integrator slots do not mislabel overflow and unknown chains use the neutral hub", () => {
-  const apps = ["opensea", "test-app-b", "test-app-c"].map((key) => ({
-    key,
-    name: key,
-    kind: "integrator",
-  }));
+test("authored app parcels preserve attribution, overflow uses commons, and outside chains are not aliased", () => {
+  const apps = integrators;
   registerApps(
-    apps.map((app) => ({ app, originChainId: 8453, destinationChainId: 56 })),
+    apps.map((app) => ({ app, originChainId: 1, destinationChainId: 8453 })),
   );
-  const a = getAddress(8453, apps[0]),
-    b = getAddress(8453, apps[1]),
-    c = getAddress(8453, apps[2]);
-  assert.equal(a.type, "integrator");
-  assert.equal(b.type, "integrator");
-  assert.notEqual(a.x, b.x);
-  assert.equal(c.type, "commons");
-  assert.equal(
-    getAddress(8453, { key: "unknown", kind: "unknown" }).type,
-    "commons",
+  for (let slot = 0; slot < 5; slot++) {
+    const address = getAddress(1, apps[slot]),
+      tower = getTowerAddress(1, slot);
+    assert.equal(address.type, "integrator");
+    assert.equal(address.x, tower.x);
+    assert.equal(address.z, tower.z);
+  }
+  assert.equal(getAddress(1, apps[5]).type, "commons");
+  assert.equal(getAddress(8453, apps[0]).type, "integrator");
+  assert.equal(getAddress(8453, apps[1]).type, "commons");
+  assert.equal(getAddress(8453, { kind: "unknown" }).type, "commons");
+  assert.equal(getDistrict(999999999).visible, false);
+  assert.equal(getAddress(999999999, relay).type, "unmapped");
+  assert.throws(
+    () =>
+      groundRoute({
+        originChainId: 999999999,
+        destinationChainId: 1,
+        kind: "car",
+        app: relay,
+      }),
+    /outside the authored city/,
   );
-  assert.equal(getDistrict(999999999).id, 0);
-  assert.notEqual(getDistrict(999999999).x, getDistrict(8453).x);
   const route = groundRoute({
     originChainId: 8453,
-    destinationChainId: 56,
+    destinationChainId: 1,
     app: apps[0],
     kind: "car",
   });
@@ -436,7 +467,7 @@ test("twin railway loops serve every station and return to their tunnel in oppos
       assert.ok(Math.abs(station.x - district.station.x) < 1);
       assert.ok(Math.abs(station.z - district.station.z) < 2);
       const plan = trainPlan(
-        { originChainId: district.id, destinationChainId: 56 },
+        { originChainId: district.id, destinationChainId: 1 },
         lane,
       );
       assert.ok(
@@ -447,7 +478,7 @@ test("twin railway loops serve every station and return to their tunnel in oppos
       assert.ok(plan.at(plan.exit).distanceTo(plan.at(0)) < 0.001);
     }
   }
-  const transfer = { originChainId: 8453, destinationChainId: 56 };
+  const transfer = { originChainId: 8453, destinationChainId: 1 };
   const north = trainPlan(transfer, 0),
     south = trainPlan(transfer, 1);
   assert.equal(north.direction, -south.direction);
@@ -465,17 +496,26 @@ test("flights vary their entry per request while preserving the destination bear
     const transfer = {
       id: `flight-${i}`,
       originChainId: 8453,
-      destinationChainId: 56,
+      destinationChainId: 1,
     };
     const flight = flightRoute(transfer),
       sameId = flightRoute({ ...transfer, stage: "failed" });
     entries.add(flight.getPoint(0).x.toFixed(2));
     assert.ok(flight.getPoint(0).distanceTo(sameId.getPoint(0)) < 0.001);
-    close(flight.getPoint(1).x, centerX, "south x");
-    close(flight.getPoint(1).z, centerZ + radius, "south edge");
+    const angle = (flightBearing(transfer.destinationChainId) * Math.PI) / 180;
+    close(
+      flight.getPoint(1).x,
+      centerX + Math.sin(angle) * radius,
+      "bearing x",
+    );
+    close(
+      flight.getPoint(1).z,
+      centerZ - Math.cos(angle) * radius,
+      "bearing z",
+    );
   }
   assert.ok(entries.size > 12);
-  assert.equal(flightBearing(56), 180);
+
   for (const d of DISTRICTS) {
     const flight = flightRoute({
       id: "same-chain-flight",
@@ -499,7 +539,7 @@ test("flights vary their entry per request while preserving the destination bear
     movementSpeed({
       kind: "pedestrian",
       originChainId: 1,
-      destinationChainId: 56,
+      destinationChainId: 8453,
       durationSeconds: 8,
     }).animation,
     "sprint",
@@ -508,7 +548,7 @@ test("flights vary their entry per request while preserving the destination bear
     movementSpeed({
       kind: "pedestrian",
       originChainId: 1,
-      destinationChainId: 56,
+      destinationChainId: 8453,
       durationSeconds: null,
     }).animation,
     "walk",

@@ -3,7 +3,6 @@ import { getChain } from "./activity.js";
 import {
   GROUND,
   DISTRICTS,
-  OTHER_DISTRICT,
   RAIL_HEIGHT,
   RAIL_POINTS,
   ROAD_SEGMENTS,
@@ -142,10 +141,8 @@ export function buildRailway({ group, box, material, sign }) {
     }
   }
 
-  for (const district of [...DISTRICTS, OTHER_DISTRICT]) {
-    const chain = district.id
-      ? getChain(district.id)
-      : { id: 0, name: "Interchange", color: "#9a99aa" };
+  for (const district of DISTRICTS) {
+    const chain = getChain(district.id);
     const progress = getStationProgress(district.id, 2);
     const center = centerCurve.getPointAt(progress);
     const tangent = centerCurve.getTangentAt(progress);
@@ -178,19 +175,16 @@ export function buildRailway({ group, box, material, sign }) {
         );
     stationBox(0, canopyBottom + 0.18, 0, 12.5, 0.36, 8.3, chain.color, 0.18);
     const title = local(0, 4.18);
-    // All row stops face south; the neutral stop is also placed on a row straight.
+    // Each authored stop sits on the shared east-west rail segment.
     sign(
-      district.id ? `${chain.name} Station` : "Interchange",
+      `${chain.name} Station`,
       title.x,
       canopyBottom - 0.65,
       title.z,
       10,
-      district.id ? chain : null,
+      chain,
     );
-    const stairDirection =
-      district.bounds.right - center.x >= center.x - district.bounds.left
-        ? 1
-        : -1;
+    const stairDirection = district.station.stairDirection;
     const landingHeight = platformTop - GROUND;
     // The flight runs along the platform, leaving both the avenue and next district clear.
     stationBox(

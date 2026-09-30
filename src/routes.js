@@ -45,7 +45,7 @@ const onStreet = (p, s) =>
   p.z >= Math.min(s.z1, s.z2) - 0.001 &&
   p.z <= Math.max(s.z1, s.z2) + 0.001;
 
-// The small street graph uses only rendered segments, including ragged district rows.
+// The small street graph uses only the authored, rendered road segments.
 function streetNodes(from, to, neutralOnly = false) {
   if (key(from) === key(to)) return [from];
   const nodes = new Map([...JUNCTIONS, from, to].map((p) => [key(p), p]));
@@ -105,20 +105,39 @@ function viaStreets(...stops) {
     );
 }
 function lanePoints(nodes, y) {
-  const points = [];
-  for (let i = 1; i < nodes.length; i++) {
-    const a = nodes[i - 1],
-      b = nodes[i];
-    const dx = Math.sign(b.x - a.x),
-      dz = Math.sign(b.z - a.z);
-    if (!dx && !dz) continue;
-    points.push(
-      [a.x - dz * 1.6, y, a.z + dx * 1.6],
-      [b.x - dz * 1.6, y, b.z + dx * 1.6],
-    );
+  if (nodes.length < 2) return [];
+  const directions = nodes.slice(1).map((point, i) => ({
+    x: Math.sign(point.x - nodes[i].x),
+    z: Math.sign(point.z - nodes[i].z),
+  }));
+  const offset = (point, direction) => [
+    point.x - direction.z * 1.6,
+    y,
+    point.z + direction.x * 1.6,
+  ];
+  const points = [offset(nodes[0], directions[0])];
+  for (let i = 1; i < nodes.length - 1; i++) {
+    const before = directions[i - 1],
+      after = directions[i],
+      point = nodes[i];
+    if (before.x * after.x + before.z * after.z === 0) {
+      // Meet the lane centerlines at their intersection. Segment-end connectors
+      // double back at inside corners and make followers look like opposing traffic.
+      points.push([
+        point.x - (before.z + after.z) * 1.6,
+        y,
+        point.z + (before.x + after.x) * 1.6,
+      ]);
+    } else {
+      points.push(offset(point, before));
+      if (before.x !== after.x || before.z !== after.z)
+        points.push(offset(point, after));
+    }
   }
+  points.push(offset(nodes.at(-1), directions.at(-1)));
   return points;
 }
+
 function pavementPoints(nodes, y) {
   return nodes.map((p, i) => {
     const before = nodes[i - 1] ?? nodes[i + 1],
@@ -140,10 +159,21 @@ function pedestrianAccess(address, y) {
   ];
   let road = address.road;
   if (address.sidewalkSide > 0) {
-    // Southern buildings cross at the nearest marked loop junction, never their driveway.
-    const x = address.district.loop.right + 4.7;
-    points.push([x, y, address.sidewalk.z], [x, y, address.road.z - 4.7]);
-    road = { x, z: address.road.z };
+    const junction = JUNCTIONS.filter(
+      (p) =>
+        Math.abs(p.z - address.road.z) < 0.001 &&
+        getDistrictAt(p.x, p.z) === address.district &&
+        ROAD_SEGMENTS.some(
+          (s) =>
+            s.x1 === s.x2 && Math.abs(s.x1 - p.x) < 0.001 && onStreet(p, s),
+        ),
+    ).sort((a, b) => Math.abs(a.x - road.x) - Math.abs(b.x - road.x))[0];
+    const x = junction.x + 4.7;
+    points.push(
+      [x, y, address.sidewalk.z],
+      [x, y, address.road.z - 4.7],
+      [road.x, y, address.road.z - 4.7],
+    );
   }
   return { points, road };
 }
@@ -175,6 +205,8 @@ export function groundRoute(transfer) {
   const destination = sameChain
     ? origin
     : getAddress(transfer.destinationChainId, transfer.app, "destination");
+  if (!origin.district.visible || !destination.district.visible)
+    throw new Error("This trip is outside the authored city");
   const district = origin.district,
     center = checkpoint(transfer),
     y = GROUND + (walking ? 0.4 : 0.23);
@@ -185,6 +217,12 @@ export function groundRoute(transfer) {
     ? pavementPoints(departNodes, y)
     : lanePoints(departNodes, y);
   const start = walking ? origin.door : origin.garage;
+  if (walking && sameChain && departStreets.length)
+    departStreets[departStreets.length - 1] = [
+      center.x + 4.7,
+      y,
+      center.z - 4.7,
+    ];
   if (!departStreets.length)
     departStreets.push([center.x, y, center.z - (walking ? 4.7 : 1.6)]);
   const depart = roundedPath(
@@ -197,36 +235,16 @@ export function groundRoute(transfer) {
   const border = getGate(transfer.originChainId, walking);
   let onwardNodes;
   if (sameChain) {
-    const loop = district.loop;
     onwardNodes = viaStreets(
-      center,
-      { x: loop.left, z: loop.top },
-      { x: loop.right, z: loop.top },
-      { x: loop.right, z: loop.bottom },
+      ...district.localTour,
       walking ? access.road : origin.road,
     );
   } else {
-    const exit = district.gate;
-    const entry =
-      destination.district.gates[district.x > destination.district.x ? 1 : 0];
-    const neutral =
-      district.id === destination.district.id
-        ? [
-            ...streetNodes(
-              exit,
-              { x: exit.x + (exit.side === "west" ? -13 : 13), z: exit.z },
-              true,
-            ),
-            ...streetNodes(
-              { x: exit.x + (exit.side === "west" ? -13 : 13), z: exit.z },
-              entry,
-              true,
-            ).slice(1),
-          ]
-        : streetNodes(exit, entry, true);
+    const exit = district.gate,
+      entry = destination.district.gate;
     onwardNodes = [
       ...streetNodes(center, exit),
-      ...neutral.slice(1),
+      ...streetNodes(exit, entry, true).slice(1),
       ...streetNodes(entry, walking ? arrival.road : destination.road).slice(1),
     ];
   }
@@ -242,10 +260,23 @@ export function groundRoute(transfer) {
     ...(walking ? arrival.points.slice().reverse() : [[finish.x, y, finish.z]]),
   ]);
   const bay = walking ? district.walkBay : district.bay;
+  const inspectionCenter = {
+    x: district.gate.x + (district.gate.side === "west" ? 4.5 : -4.5),
+    z: district.roadZ,
+  };
+  const holdingStreets = sameChain
+    ? (walking ? pavementPoints : lanePoints)(
+        streetNodes(center, inspectionCenter),
+        y,
+      )
+    : [];
+  if (walking && sameChain && holdingStreets.length)
+    holdingStreets[0] = [gate.x, y, gate.z];
   const hold = roundedPath(
     [
       [gate.x, y, gate.z],
-      [gate.x, y, bay.z],
+      ...holdingStreets,
+      [inspectionCenter.x, y, bay.z],
       [bay.x, y, bay.z],
     ],
     0.6,
@@ -253,12 +284,17 @@ export function groundRoute(transfer) {
   const resume = reversePath(hold);
   const returnFromHold = walking
     ? new THREE.CurvePath()
-    : fromBayTo(origin, bay, center, y);
+    : fromBayTo(origin, bay, inspectionCenter, y);
   if (walking) {
     returnFromHold.add(resume);
     returnFromHold.add(reversePath(depart));
   }
-  const police = fromBayTo(district.police, bay, center, GROUND + 0.23);
+  const police = fromBayTo(
+    district.police,
+    bay,
+    inspectionCenter,
+    GROUND + 0.23,
+  );
   return {
     depart,
     onward,
@@ -416,7 +452,7 @@ export function roadReturnRoute(transfer, position, heading, toGate = false) {
   if (owner?.id === address.district.id)
     nodes = [...lead, ...streetNodes(junction, target).slice(1)];
   else {
-    const exit = owner ? owner.gates[heading.x > 0 ? 1 : 0] : junction;
+    const exit = owner ? owner.gate : junction;
     const entry = address.district.gate;
     nodes = [
       ...lead,
@@ -426,17 +462,16 @@ export function roadReturnRoute(transfer, position, heading, toGate = false) {
     ];
   }
   const streets = lanePoints(nodes, y);
+  const departureLane = toGate
+    ? lanePoints(streetNodes(address.road, target), y).at(-1)
+    : null;
   const finish = toGate
     ? {
-        x: target.x,
-        z:
-          target.z -
-          (getDistrict(transfer.originChainId).gate.side === "west" ||
-          transfer.originChainId === transfer.destinationChainId
-            ? 1.6
-            : -1.6),
+        x: departureLane?.[0] ?? target.x,
+        z: departureLane?.[2] ?? target.z - 1.6,
       }
     : address.garage;
+
   return roundedPath([
     [position.x, y, position.z],
     ...streets,

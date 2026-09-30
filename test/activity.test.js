@@ -6,8 +6,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   CHAIN_CONFIG,
+  CITY_CHAIN_IDS,
   classifyTransfer,
   createDemoTransfers,
+  getDistrictTrips,
   normalizeRequest,
 } from "../src/activity.js";
 import { createServer } from "../server.mjs";
@@ -119,6 +121,10 @@ test("demo fixtures are clearly artificial and cover all six vehicles", () => {
   assert.equal(rows.length, 36);
   assert.equal(new Set(rows.map((row) => row.id)).size, 36);
   assert.equal(new Set(rows.map((row) => row.kind)).size, 6);
+  assert.deepEqual(
+    new Set(rows.flatMap((row) => [row.originChainId, row.destinationChainId])),
+    new Set(CITY_CHAIN_IDS),
+  );
   assert.ok(
     rows.every(
       (row) =>
@@ -141,7 +147,7 @@ test("demo scenarios cover same-chain runs, app routes, failures and both train 
     rows.some(
       (row) =>
         row.app.key === "opensea" &&
-        row.originChainId === 56 &&
+        row.originChainId === 1 &&
         row.destinationChainId === 8453,
     ),
   );
@@ -152,12 +158,12 @@ test("demo scenarios cover same-chain runs, app routes, failures and both train 
   const trains = rows.filter((row) => row.kind === "train");
   assert.ok(
     trains.some(
-      (row) => row.originChainId === 8453 && row.destinationChainId === 56,
+      (row) => row.originChainId === 8453 && row.destinationChainId === 1,
     ),
   );
   assert.ok(
     trains.some(
-      (row) => row.originChainId === 56 && row.destinationChainId === 8453,
+      (row) => row.originChainId === 1 && row.destinationChainId === 8453,
     ),
   );
   assert.ok(
@@ -178,6 +184,36 @@ test("demo scenarios cover same-chain runs, app routes, failures and both train 
     CHAIN_CONFIG.find((chain) => chain.id === 56).flightBearing,
     180,
   );
+});
+
+test("district selection excludes unsupported routes and partitions local, incoming and outgoing trips", () => {
+  const trips = [
+    { id: "out", originChainId: 1, destinationChainId: 8453 },
+    { id: "in", originChainId: 8453, destinationChainId: 1 },
+    { id: "eth-local", originChainId: 1, destinationChainId: 1 },
+    { id: "base-local", originChainId: 8453, destinationChainId: 8453 },
+    { id: "unsupported-origin", originChainId: 56, destinationChainId: 1 },
+    { id: "unsupported-destination", originChainId: 1, destinationChainId: 137 },
+    { id: "unsupported-local", originChainId: 56, destinationChainId: 56 },
+  ];
+  const ids = (rows) => rows.map(({ id }) => id);
+  assert.deepEqual(ids(getDistrictTrips(trips)), [
+    "out", "in", "eth-local", "base-local",
+  ]);
+  assert.deepEqual(ids(getDistrictTrips(trips, "1", "incoming")), ["in"]);
+  assert.deepEqual(ids(getDistrictTrips(trips, 1, "outgoing")), ["out"]);
+  assert.deepEqual(ids(getDistrictTrips(trips, 1, "local")), ["eth-local"]);
+  assert.deepEqual(ids(getDistrictTrips(trips, "all", "local")), [
+    "eth-local", "base-local",
+  ]);
+  for (const chainId of CITY_CHAIN_IDS) {
+    const groups = ["incoming", "outgoing", "local"].flatMap((direction) =>
+      getDistrictTrips(trips, chainId, direction),
+    );
+    assert.equal(new Set(groups).size, groups.length);
+    assert.deepEqual(new Set(groups), new Set(getDistrictTrips(trips, chainId)));
+  }
+  assert.deepEqual(getDistrictTrips(trips, 56), []);
 });
 
 test("stages require transaction evidence and retain exact terminal failures", () => {

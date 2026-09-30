@@ -92,6 +92,24 @@ export function getChain(id) {
   );
 }
 
+export const CITY_CHAIN_IDS = Object.freeze([1, 8453]);
+
+export function getDistrictTrips(transfers, chainId = "all", direction = "all") {
+  const id = Number(chainId);
+  return transfers.filter(
+    ({ originChainId: origin, destinationChainId: destination }) => {
+      if (!CITY_CHAIN_IDS.includes(origin) || !CITY_CHAIN_IDS.includes(destination))
+        return false;
+      if (chainId !== "all" && origin !== id && destination !== id) return false;
+      if (direction === "all") return true;
+      if (direction === "local") return origin === destination;
+      if (direction === "incoming") return destination === id && origin !== id;
+      if (direction === "outgoing") return origin === id && destination !== id;
+      return false;
+    },
+  );
+}
+
 export function classifyTransfer(amountUsd) {
   if (!Number.isFinite(amountUsd) || amountUsd < 100) return "pedestrian";
   if (amountUsd < 1_000) return "car";
@@ -317,28 +335,13 @@ export function createDemoTransfers(count = 36, scenario = "all") {
   ];
   return Array.from({ length: size }, (_, index) => {
     const scenario = index % amounts.length;
-    const trainDirection = Math.floor(index / 12) % 2;
-    const origin =
-      CHAIN_CONFIG[
-        scenario === 1
-          ? 6
-          : scenario === 7
-            ? trainDirection
-              ? 6
-              : 0
-            : index % CHAIN_CONFIG.length
-      ];
+    const origin = getChain(
+      CITY_CHAIN_IDS[
+        scenario === 1 ? 0 : (index + Math.floor(index / amounts.length)) % 2
+      ],
+    );
     const destination =
-      scenario === 1
-        ? CHAIN_CONFIG[0]
-        : scenario === 3
-          ? origin
-          : scenario === 7
-            ? CHAIN_CONFIG[trainDirection ? 0 : 6]
-            : CHAIN_CONFIG[
-                (index + 1 + (Math.floor(index / 12) % 11)) %
-                  CHAIN_CONFIG.length
-              ];
+      scenario === 3 ? origin : getChain(origin.id === 1 ? 8453 : 1);
     const amountUsd =
       scenario === 5 && Math.floor(index / 12) === 1
         ? 38

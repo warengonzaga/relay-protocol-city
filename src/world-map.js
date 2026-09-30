@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { CITY_CHAIN_IDS } from "./activity.js";
+import { DISTRICT_LAYOUTS } from "./district-layout.js";
 
 export const GROUND = 0.6;
 export const RAIL_HEIGHT = 7.2;
@@ -7,119 +9,68 @@ export const ROAD_SEGMENTS = [],
 export const SIGNAL_JUNCTIONS = [];
 export const CITY_BOUNDS = {};
 export const RAIL_POINTS = [];
-export const DISTRICTS = [
-  8453, 1, 792703809, 42161, 10, 137, 56, 43114, 8253038, 130, 999, 59144,
-].map((id) => ({ id }));
-export const OTHER_DISTRICT = { id: 0 };
-let configured = false;
+export const DISTRICTS = CITY_CHAIN_IDS.map((id) => ({ id }));
+// Unsupported chains have no displayed geography and must never be aliased onto a district.
+export const OTHER_DISTRICT = { id: 0, visible: false, x: -10000, z: -10000 };
 
-function sizeDistrict(district, left, width, z, side = "west") {
-  const x = left + width / 2;
-  Object.assign(district, {
-    x,
-    z,
-    width,
-    height: 56,
-    bounds: { left, right: left + width, top: z - 28, bottom: z + 28 },
-    roadZ: z + 12,
-    loop: {
-      left: left + 10,
-      right: left + width - 10,
-      top: z - 14,
-      bottom: z + 12,
-    },
-    station: { x, z: z + 22 },
-    gate: { x: side === "west" ? left : left + width, z: z + 12, side },
-    bay: { x: side === "west" ? left + 5 : left + width - 5, z: z + 3 },
-    walkBay: { x: side === "west" ? left + 5 : left + width - 5, z: z - 1 },
-    police: {
-      x: x - 14,
-      z: z + 22,
-      garage: { x: x - 14, z: z + 18.5 },
-      road: { x: x - 14, z: z + 12 },
-    },
-  });
-}
-
-// Broad angled shoulders shape each territory without occupying the public corridors.
-function buildTerritories() {
-  for (const [index, district] of [...DISTRICTS, OTHER_DISTRICT].entries()) {
-    const { left, right } = district.bounds,
-      z = district.z;
-    const inset = 8 + (index % 3) * 3;
-    district.polygon = [
-      { x: left + inset, z: z - 38 - (index % 6) },
-      { x: right - 8, z: z - 43 + (index % 5) },
-      { x: right, z: z - 29 },
-      { x: right, z: z + 30 },
-      { x: right - inset, z: z + 38 + (index % 6) },
-      { x: left + 8, z: z + 43 - (index % 5) },
-      { x: left, z: z + 30 },
-      { x: left, z: z - 29 },
-    ];
+function layout() {
+  for (const district of DISTRICTS) {
+    const plan = DISTRICT_LAYOUTS[district.id];
+    Object.assign(district, plan, { visible: true });
+    district.width = plan.bounds.right - plan.bounds.left;
+    district.height = plan.bounds.bottom - plan.bounds.top;
     district.polygonBounds = {
-      left,
-      right,
-      top: Math.min(...district.polygon.map((v) => v.z)),
-      bottom: Math.max(...district.polygon.map((v) => v.z)),
+      left: Math.min(...plan.polygon.map((p) => p.x)),
+      right: Math.max(...plan.polygon.map((p) => p.x)),
+      top: Math.min(...plan.polygon.map((p) => p.z)),
+      bottom: Math.max(...plan.polygon.map((p) => p.z)),
     };
-    district.height =
-      district.polygonBounds.bottom - district.polygonBounds.top;
-    district.gates = [
-      { x: left, z: district.roadZ, side: "west" },
-      { x: right, z: district.roadZ, side: "east" },
-    ];
+    district.gates = [district.gate];
+    district.sites = plan.sites.map((site) => {
+      if (site.role === "scenery")
+        return { ...site, address: { x: site.x, z: site.z, type: "scenery" } };
+      const type = site.model.startsWith("building-type") ? "house" : site.role;
+      const ports = address(
+        district,
+        type,
+        site.x - district.x,
+        site.z - district.z,
+        site.roadZ,
+        site.side,
+        { kind: site.role },
+        site.maxDepth,
+      );
+      delete ports.district;
+      return { ...site, address: ports };
+    });
+    district.police = district.sites.find(
+      (site) => site.role === "police",
+    ).address;
   }
-}
-
-function layout(counts = new Map()) {
-  const maximum = Math.max(
-    1,
-    ...DISTRICTS.map(({ id }) => counts.get(id) || 0),
-  );
-  for (let row = 0; row < 3; row++) {
-    let left = -80;
-    for (const district of DISTRICTS.slice(row * 4, row * 4 + 4)) {
-      const count = Math.max(0, counts.get(district.id) || 0);
-      const width = 44 + 28 * Math.sqrt(count / maximum);
-      sizeDistrict(district, left, width, (row - 1) * 104);
-      district.activityCount = count;
-      left += width + 26;
-    }
-  }
-  sizeDistrict(OTHER_DISTRICT, -145, 39, 0, "east");
-  OTHER_DISTRICT.station.x = OTHER_DISTRICT.x + 8.5;
-  buildTerritories();
-  const right = Math.max(...DISTRICTS.map((d) => d.bounds.right));
-  const neutralLeft = OTHER_DISTRICT.bounds.left - 13;
   Object.assign(CITY_BOUNDS, {
-    left: neutralLeft - 16,
-    right: right + 29,
-    top: -174,
-    bottom: 174,
-    minX: neutralLeft - 16,
-    maxX: right + 29,
-    minZ: -174,
-    maxZ: 174,
+    left: -176,
+    right: 186,
+    top: -106,
+    bottom: 86,
+    minX: -176,
+    maxX: 186,
+    minZ: -106,
+    maxZ: 86,
   });
-  const streets = new Map();
-  const addStreet = (x1, z1, x2, z2, neutral = false) =>
-    streets.set(`${x1}:${z1}:${x2}:${z2}`, { x1, z1, x2, z2, neutral });
-  for (const z of [-156, -52, 52, 156])
-    addStreet(neutralLeft, z, right + 13, z, true);
-  for (const d of [...DISTRICTS, OTHER_DISTRICT]) {
-    const r = d.loop,
-      { left, right } = d.bounds;
-    addStreet(left, d.roadZ, right, d.roadZ);
-    addStreet(r.left, r.top, r.right, r.top);
-    addStreet(r.left, r.top, r.left, r.bottom);
-    addStreet(r.right, r.top, r.right, r.bottom);
-    addStreet(left - 13, d.roadZ, left, d.roadZ, true);
-    addStreet(right, d.roadZ, right + 13, d.roadZ, true);
-    addStreet(left - 13, d.z - 52, left - 13, d.z + 52, true);
-    addStreet(right + 13, d.z - 52, right + 13, d.z + 52, true);
-  }
-  ROAD_SEGMENTS.splice(0, ROAD_SEGMENTS.length, ...streets.values());
+  ROAD_SEGMENTS.splice(
+    0,
+    ROAD_SEGMENTS.length,
+    ...DISTRICTS.flatMap((d) =>
+      d.localRoads.map(([x1, z1, x2, z2]) => ({
+        x1,
+        z1,
+        x2,
+        z2,
+        neutral: false,
+      })),
+    ),
+    { x1: 20, z1: 0, x2: 68, z2: 0, neutral: true },
+  );
   const points = new Map();
   const add = (x, z) => points.set(`${x}:${z}`, { x, z });
   for (const s of ROAD_SEGMENTS) {
@@ -161,54 +112,24 @@ function layout(counts = new Map()) {
       return directions.size >= 3;
     }),
   );
-  // One shared centerline positions the tracks, stations, and supporting gantries.
+  // A single elevated spine serves both authored station platforms.
   RAIL_POINTS.splice(
     0,
     RAIL_POINTS.length,
-    [0, -145],
-    [neutralLeft - 8, -145],
-    [neutralLeft - 8, -82],
-    [right + 21, -82],
-    [right + 21, 22],
-    [neutralLeft - 8, 22],
-    [neutralLeft - 8, 126],
-    [right + 25, 126],
-    [right + 25, -145],
+    [5, -88],
+    [-160, -88],
+    [-160, 42],
+    [170, 42],
+    [170, -88],
   );
 }
 
-// Freeze the first observed sample; changing the ground under active journeys is misleading.
-export function configureDistricts(transfers = [], chainCounts = null) {
-  if (configured) return false;
-  const counts = new Map();
-  if (chainCounts) {
-    for (const [id, count] of Object.entries(chainCounts))
-      if (Number.isFinite(Number(count)) && Number(count) >= 0)
-        counts.set(Number(id), Number(count));
-  } else {
-    const seen = new Set();
-    for (const transfer of transfers) {
-      if (transfer.id && seen.has(transfer.id)) continue;
-      if (transfer.id) seen.add(transfer.id);
-      for (const id of new Set([
-        Number(transfer.originChainId),
-        Number(transfer.destinationChainId),
-      ]))
-        counts.set(id, (counts.get(id) || 0) + 1);
-    }
-  }
-  layout(counts);
-  railCurves.clear();
-  stationProgress.clear();
-  configured = true;
-  return true;
-}
 export function getDistrictBounds() {
   return { ...CITY_BOUNDS };
 }
 export function getDistrictAt(x, z) {
   return (
-    [...DISTRICTS, OTHER_DISTRICT].find(({ polygon }) => {
+    DISTRICTS.find(({ polygon }) => {
       let inside = false;
       for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
         const a = polygon[i],
@@ -243,8 +164,15 @@ export function registerApps(transfers) {
     if (transfer.app?.kind !== "integrator") continue;
     for (const id of [transfer.originChainId, transfer.destinationChainId]) {
       const slots = appSlots.get(Number(id));
-      if (!slots || slots.has(transfer.app.key) || slots.size >= 2) continue;
-      // ponytail: two dedicated towers per district; overflow shares a clearly named commons.
+      if (
+        !slots ||
+        slots.has(transfer.app.key) ||
+        slots.size >=
+          getDistrict(id).sites.filter((site) => site.role === "integrator")
+            .length
+      )
+        continue;
+      // Each authored app parcel accepts one observed integrator; overflow uses the commons.
       slots.set(transfer.app.key, { ...transfer.app, slot: slots.size });
     }
   }
@@ -252,7 +180,7 @@ export function registerApps(transfers) {
 export function getDistrictApps(id) {
   return [...(appSlots.get(id)?.values() ?? [])];
 }
-function address(district, type, dx, dz, roadZ, side, app) {
+function address(district, type, dx, dz, roadZ, side, app, depth = 5.8) {
   const x = district.x + dx,
     z = district.z + dz;
   const driveX = x + (type === "house" ? (dx < 0 ? 3 : -3) : 0);
@@ -263,23 +191,18 @@ function address(district, type, dx, dz, roadZ, side, app) {
     district,
     app,
     sidewalkSide: side,
-    door: { x, z: z - side * 3.2 },
-    garage: { x: driveX, z: z - side * 3.5 },
+    door: { x, z: z - side * (depth / 2 + 0.3) },
+    garage: { x: driveX, z: z - side * (depth / 2 + 2.3) },
     sidewalk: { x: driveX, z: roadZ + side * 4.7 },
     road: { x: driveX, z: roadZ },
   };
 }
 export function getTowerAddress(chainId, slot) {
   const district = getDistrict(chainId);
-  return address(
-    district,
-    "integrator",
-    slot === 0 ? -5 : 5,
-    -24,
-    district.loop.top,
-    -1,
-    { kind: "integrator" },
+  const site = district.sites?.find(
+    (site) => site.role === "integrator" && site.slot === slot,
   );
+  return site ? { ...site.address, district } : null;
 }
 export function getAddress(
   chainId,
@@ -287,28 +210,18 @@ export function getAddress(
   role = "origin",
 ) {
   const district = getDistrict(chainId);
+  if (!district.visible)
+    return { x: district.x, z: district.z, district, app, type: "unmapped" };
   const assigned = appSlots.get(district.id)?.get(app.key);
-  if (district.id && app.kind === "relay")
-    return address(
-      district,
-      "house",
-      role === "destination" ? 5 : -5,
-      -3,
-      district.roadZ,
-      -1,
-      app,
-    );
-  if (district.id && app.kind === "integrator" && assigned)
+  if (app.kind === "integrator" && assigned)
     return { ...getTowerAddress(chainId, assigned.slot), app };
-  return address(
-    district,
-    "commons",
-    district.id ? 14 : 7,
-    22,
-    district.roadZ,
-    1,
-    app,
-  );
+  const site =
+    app.kind === "relay"
+      ? district.sites.find(
+          (site) => site.role === "relay" && site.endpoint === role,
+        )
+      : district.sites.find((site) => site.role === "commons");
+  return { ...site.address, district, app };
 }
 export function getGate(chainId, pedestrian = false) {
   const d = getDistrict(chainId);

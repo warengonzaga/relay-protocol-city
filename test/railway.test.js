@@ -2,17 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
 import { buildRailway } from "../src/railway.js";
-import { createDemoTransfers } from "../src/activity.js";
 import {
   GROUND,
   RAIL_HEIGHT,
   DISTRICTS,
-  OTHER_DISTRICT,
   ROAD_SEGMENTS,
-  configureDistricts,
   createRailCurve,
   getStationProgress,
-  getTowerAddress,
   getDistrictAt,
 } from "../src/world-map.js";
 
@@ -86,8 +82,8 @@ function checkRailGeometry() {
   const canopies = boxes.filter(
     (box) => box.width === 12.5 && box.depth === 8.3,
   );
-  assert.equal(platforms.length, DISTRICTS.length + 1);
-  for (const [index, district] of [...DISTRICTS, OTHER_DISTRICT].entries()) {
+  assert.equal(platforms.length, 2);
+  for (const [index, district] of DISTRICTS.entries()) {
     const platform = platforms[index];
     insideDistrict(platform, district);
     insideDistrict(canopies[index], district);
@@ -128,9 +124,7 @@ function checkRailGeometry() {
         Math.abs(Math.cos(stair.object.rotation.y)) * stair.depth) /
       2;
     if (stair.color === "#77758a") {
-      const district = [...DISTRICTS, OTHER_DISTRICT][
-        Math.floor(stairs.indexOf(stair) / 13)
-      ];
+      const district = DISTRICTS[Math.floor(stairs.indexOf(stair) / 13)];
       insideDistrict(stair, district);
       assert.ok(
         x - halfX >= district.bounds.left &&
@@ -140,15 +134,14 @@ function checkRailGeometry() {
         "stairs and landing stay inside their own district",
       );
       for (const target of DISTRICTS)
-        for (const slot of [0, 1]) {
-          const tower = getTowerAddress(target.id, slot);
+        for (const site of target.sites) {
           assert.equal(
-            x + halfX > tower.x - 3 &&
-              x - halfX < tower.x + 3 &&
-              z + halfZ > tower.z - 2.85 &&
-              z - halfZ < tower.z + 2.85,
+            x + halfX > site.address.x - site.maxWidth / 2 &&
+              x - halfX < site.address.x + site.maxWidth / 2 &&
+              z + halfZ > site.address.z - site.maxDepth / 2 &&
+              z - halfZ < site.address.z + site.maxDepth / 2,
             false,
-            "station access must not overlap any rendered app tower footprint",
+            `station access must not overlap authored lot ${site.id}`,
           );
         }
     }
@@ -170,8 +163,6 @@ function checkRailGeometry() {
   surface.dispose();
 }
 
-test("rail geometry stays supported and station access clears roads and towers in equal and sampled layouts", () => {
-  checkRailGeometry();
-  configureDistricts(createDemoTransfers());
+test("authored station access clears streets and buildings and all rail supports meet their decks", () => {
   checkRailGeometry();
 });

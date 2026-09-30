@@ -1,117 +1,78 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { createTraffic } from "../src/traffic.js";
-import {
-  flightRoute,
-  groundRoute,
-  movementSpeed,
-  trainPlan,
-} from "../src/routes.js";
+import { fixture, transfer } from "./traffic-fixture.js";
+import { flightRoute, groundRoute } from "../src/routes.js";
 import { SIGNAL_JUNCTIONS, getSignalState } from "../src/world-map.js";
 import { createDemoTransfers } from "../src/activity.js";
 import { refreshTravelerPace } from "../src/travelers.js";
 
-const noop = () => {};
-const transfer = (number, changes = {}) => ({
-  id: `0x${number.toString(16).padStart(64, "0")}`,
-  originChainId: 8453,
-  destinationChainId: 1,
-  kind: "car",
-  amountUsd: 500,
-  stage: "gate",
-  status: "pending",
-  app: { kind: "relay", key: "relay", name: "Relay" },
-  ...changes,
+test("picking skips clipped world-space hits but still selects visible travelers behind them", (t) => {
+  const selected = [];
+  const f = fixture(t, (request) => selected.push(request.id));
+  const near = transfer(230);
+  const far = transfer(231, { originChainId: 1, destinationChainId: 8453 });
+  f.traffic.setData([near, far], "live");
+  f.tick(1);
+  for (const [request, z] of [
+    [near, 0],
+    [far, -5],
+  ]) {
+    const root = f.root(request.id);
+    assert.ok(root);
+    root.position.set(20, 0, z);
+    root.quaternion.identity();
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(2, 2, 2),
+      new THREE.MeshBasicMaterial(),
+    );
+    body.userData.owned = true;
+    root.add(body);
+  }
+  f.scene.updateMatrixWorld(true);
+  const camera = new THREE.OrthographicCamera(-2, 2, 2, -2, 0.1, 30);
+  camera.position.set(20, 0, 10);
+  camera.lookAt(20, 0, 0);
+  camera.updateMatrixWorld();
+  const rect = { left: 0, top: 0, width: 100, height: 100 };
+  const pick = (planes) => f.traffic.pick(50, 50, rect, camera, planes);
+  const boundary = new THREE.Plane(new THREE.Vector3(1, 0, 0), -20);
+  const clipNear = new THREE.Plane(new THREE.Vector3(0, 0, -1), -2);
+  const clipBoth = new THREE.Plane(new THREE.Vector3(1, 0, 0), -21);
+  assert.equal(pick(), true);
+  assert.equal(selected.at(-1), near.id, "overview selects the nearest hit");
+  assert.equal(pick([boundary]), true);
+  assert.equal(selected.at(-1), near.id, "points on the border remain visible");
+  assert.equal(pick([boundary, clipNear]), true);
+  assert.equal(
+    selected.at(-1),
+    far.id,
+    "a clipped foreground hit does not occlude picking",
+  );
+  assert.equal(pick([boundary, clipBoth]), false);
+  assert.equal(
+    selected.length,
+    3,
+    "fully clipped geometry cannot open an inspector",
+  );
+  assert.equal(pick(), true);
+  assert.equal(
+    selected.at(-1),
+    near.id,
+    "returning to overview restores picking",
+  );
 });
-
-function fixture(t) {
-  const previousDocument = globalThis.document;
-  const context = Object.fromEntries(
-    [
-      "beginPath",
-      "roundRect",
-      "fill",
-      "arc",
-      "moveTo",
-      "lineTo",
-      "closePath",
-      "stroke",
-      "fillText",
-      "fillRect",
-    ].map((key) => [key, noop]),
-  );
-  context.createRadialGradient = () => ({ addColorStop: noop });
-  globalThis.document = {
-    createElement: () => ({ getContext: () => context }),
-  };
-  const created = [];
-  const models = {
-    create(key) {
-      const root = new THREE.Group();
-      root.userData.height = 2;
-      root.userData.modelKey = key;
-      created.push(root);
-      return root;
-    },
-  };
-  const scene = new THREE.Scene();
-  let elapsed = 0;
-  let pendingDistricts = [];
-  const traffic = createTraffic(
-    scene,
-    models,
-    {
-      updateSignals(seconds, pending) {
-        elapsed = seconds;
-        pendingDistricts = pending;
-      },
-    },
-    noop,
-  );
-  t.after(() => {
-    traffic.dispose();
-    if (previousDocument === undefined) delete globalThis.document;
-    else globalThis.document = previousDocument;
-  });
-  const tick = (seconds = 0.1) => {
-    for (let remaining = seconds; remaining > 0.000001; remaining -= 0.1) {
-      traffic.update(Math.min(0.1, remaining));
-    }
-  };
-  const until = (predicate, message, seconds = 90) => {
-    for (let step = 0; step < seconds * 10 && !predicate(); step++) tick();
-    assert.ok(predicate(), message);
-  };
-  return {
-    traffic,
-    scene,
-    created,
-    tick,
-    until,
-    root: (id) =>
-      scene.children[0]?.children.find(
-        (root) => root.userData.transfer?.id === id,
-      ),
-    phase: (id) => traffic.inspect(id)?.phase,
-    get elapsed() {
-      return elapsed;
-    },
-    get pendingDistricts() {
-      return pendingDistricts;
-    },
-  };
-}
 
 test("opposing trains share separate lanes and a third waits until its tunnel is clear", (t) => {
   const f = fixture(t);
-  const first = transfer(1, { kind: "train" });
+  const first = transfer(1, { kind: "train", stage: "complete" });
   const opposite = transfer(2, {
     kind: "train",
+    stage: "complete",
     originChainId: 1,
     destinationChainId: 8453,
   });
-  const queued = transfer(3, { kind: "train" });
+  const queued = transfer(3, { kind: "train", stage: "complete" });
   f.traffic.setData([queued, opposite, first], "live");
   f.tick(1);
   assert.equal(f.traffic.count, 2);
@@ -127,15 +88,7 @@ test("opposing trains share separate lanes and a third waits until its tunnel is
       f.phase(opposite.id) === "rail-origin",
     "both trains must reach their origin stations",
   );
-  f.tick(30);
-  assert.equal(f.phase(first.id), "rail-origin");
-  assert.equal(f.phase(opposite.id), "rail-origin");
   assert.equal(f.traffic.stats.queued, 1);
-
-  f.traffic.setData(
-    [{ ...first, stage: "complete", status: "success" }],
-    "live",
-  );
   f.until(
     () => f.phase(first.id) === "rail-exit",
     "confirmed train must leave its destination station",
@@ -150,8 +103,6 @@ test("opposing trains share separate lanes and a third waits until its tunnel is
     "the queued train must survive polling and spawn when its lane clears",
   );
   assert.equal(f.phase(first.id), undefined);
-  assert.equal(f.phase(opposite.id), "rail-origin");
-  assert.equal(f.traffic.count, 2);
   assert.equal(
     f.created.filter(
       (root) => root.userData.modelKey === "train-electric-city-a",
@@ -568,36 +519,6 @@ test("pending airplanes remain queued and airborne failures return to their orig
   );
 });
 
-test("a train failure after departure returns through its origin without destination arrival", (t) => {
-  const f = fixture(t);
-  const request = transfer(70, { kind: "train", stage: "fill" });
-  f.traffic.setData([request], "live");
-  f.until(
-    () => f.phase(request.id) === "rail-travel",
-    "train must depart after confirmed fill",
-  );
-  f.tick(2);
-  const plan = trainPlan(request);
-  const origin = plan.at(plan.origin);
-  const root = f.root(request.id);
-  f.traffic.setData([{ ...request, stage: "failed" }], "live");
-  let passedOrigin = false;
-  f.until(
-    () => {
-      assert.notEqual(
-        f.phase(request.id),
-        "rail-destination",
-        "failed train must not dwell as a destination arrival",
-      );
-      if (root.position.distanceTo(origin) < 4) passedOrigin = true;
-      return !f.phase(request.id);
-    },
-    "failed train must eventually clear its tunnel",
-    (2 * plan.length) / movementSpeed(request).units + 4,
-  );
-  assert.ok(passedOrigin, "failed train must return via its origin station");
-});
-
 test("bounded request tracking rotates across active and queued unresolved IDs", (t) => {
   const f = fixture(t);
   const requests = Array.from({ length: 25 }, (_, index) =>
@@ -760,12 +681,7 @@ test("a car failing after departure avoids the lane occupied by its followers", 
 
 test("unconfirmed fills stay tracked after travel until the backend confirms completion", (t) => {
   const f = fixture(t);
-  for (const [index, kind] of [
-    "pedestrian",
-    "car",
-    "train",
-    "airplane",
-  ].entries()) {
+  for (const [index, kind] of ["pedestrian", "car", "airplane"].entries()) {
     const request = transfer(200 + index, { kind, stage: "fill" });
     f.traffic.setData([request], "live", true);
     f.tick(120);
@@ -793,46 +709,31 @@ test("unconfirmed fills stay tracked after travel until the backend confirms com
   }
 });
 
-test("a failure while awaiting destination confirmation still returns the original traveler", (t) => {
+test("an airplane awaiting destination confirmation still returns to its origin after failure", (t) => {
   const f = fixture(t);
-  for (const [index, kind] of [
-    "pedestrian",
-    "car",
-    "train",
-    "airplane",
-  ].entries()) {
-    const request = transfer(210 + index, { kind, stage: "fill" });
-    f.traffic.setData([request], "live", true);
-    f.tick(120);
-    const root = f.root(request.id);
-    assert.ok(
-      root,
-      `${kind} must still be represented before the late failure`,
-    );
-    f.traffic.setData(
-      [{ ...request, stage: "failed", status: "failure" }],
-      "live",
-    );
-    const rail = kind === "train" ? trainPlan(request) : null;
-    const origin = rail
-      ? rail.at(rail.origin)
-      : kind === "airplane"
-        ? flightRoute(request).getPointAt(0)
-        : groundRoute(request).depart.getPointAt(0);
-    let passedOrigin = false;
-    f.until(
-      () => {
-        if (root.position.distanceTo(origin) < 4) passedOrigin = true;
-        return f.traffic.count === 0;
-      },
-      `${kind} must return after a failure received while awaiting destination confirmation`,
-      120,
-    );
-    assert.ok(
-      passedOrigin,
-      `${kind} must return to its origin after the late failure`,
-    );
-  }
+  const request = transfer(210, { kind: "airplane", stage: "fill" });
+  f.traffic.setData([request], "live", true);
+  f.tick(120);
+  const root = f.root(request.id);
+  assert.ok(root, "airplane remains represented before the late failure");
+  f.traffic.setData(
+    [{ ...request, stage: "failed", status: "failure" }],
+    "live",
+  );
+  const origin = flightRoute(request).getPointAt(0);
+  let passedOrigin = false;
+  f.until(
+    () => {
+      if (root.position.distanceTo(origin) < 4) passedOrigin = true;
+      return f.traffic.count === 0;
+    },
+    "airplane returns after a failure while awaiting confirmation",
+    120,
+  );
+  assert.ok(
+    passedOrigin,
+    "airplane returns to its origin after the late failure",
+  );
 });
 
 test("same-ID timing updates change physical pace and animation without changing police speed", (t) => {

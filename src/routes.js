@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { getChain } from "./activity.js";
 import {
-  getAddress,
+  getJourneyAddress,
+  requestSeed,
   getDistrict,
   getGate,
   createRailCurve,
@@ -90,7 +91,7 @@ function streetNodes(from, to, neutralOnly = false) {
     }
   }
   const result = [nodes.get(target)];
-  for (let id = target; id !== start; ) {
+  for (let id = target; id !== start;) {
     id = previous.get(id);
     result.unshift(nodes.get(id));
   }
@@ -200,11 +201,11 @@ function fromBayTo(address, bay, approach, y) {
 
 export function groundRoute(transfer) {
   const walking = transfer.kind === "pedestrian";
-  const origin = getAddress(transfer.originChainId, transfer.app);
+  const origin = getJourneyAddress(transfer);
   const sameChain = transfer.originChainId === transfer.destinationChainId;
   const destination = sameChain
     ? origin
-    : getAddress(transfer.destinationChainId, transfer.app, "destination");
+    : getJourneyAddress(transfer, "destination");
   if (!origin.district.visible || !destination.district.visible)
     throw new Error("This trip is outside the authored city");
   const district = origin.district,
@@ -233,19 +234,26 @@ export function groundRoute(transfer) {
   const end = depart.getPointAt(1),
     gate = { x: end.x, z: end.z };
   const border = getGate(transfer.originChainId, walking);
+  const destinationCenter = {
+    x:
+      destination.district.gate.x +
+      (destination.district.gate.side === "west" ? 4.5 : -4.5),
+    z: destination.district.roadZ,
+  };
   let onwardNodes;
   if (sameChain) {
-    onwardNodes = viaStreets(
-      ...district.localTour,
-      walking ? access.road : origin.road,
-    );
+    const tour =
+      requestSeed(transfer) % 2
+        ? district.localTour.toReversed()
+        : district.localTour;
+    onwardNodes = viaStreets(...tour, destinationCenter);
   } else {
     const exit = district.gate,
       entry = destination.district.gate;
     onwardNodes = [
       ...streetNodes(center, exit),
       ...streetNodes(exit, entry, true).slice(1),
-      ...streetNodes(entry, walking ? arrival.road : destination.road).slice(1),
+      ...streetNodes(entry, destinationCenter).slice(1),
     ];
   }
   const onwardStreets = walking
@@ -254,11 +262,45 @@ export function groundRoute(transfer) {
   if (walking && sameChain && onwardStreets.length)
     onwardStreets[0][2] = gate.z;
   const finish = walking ? destination.door : destination.garage;
-  const onward = roundedPath([
-    [gate.x, y, gate.z],
-    ...onwardStreets,
-    ...(walking ? arrival.points.slice().reverse() : [[finish.x, y, finish.z]]),
-  ]);
+  const toDestination = roundedPath([[gate.x, y, gate.z], ...onwardStreets]);
+  const destinationEntry = toDestination.getPointAt(1);
+  const arrivalStreets = (walking ? pavementPoints : lanePoints)(
+    streetNodes(destinationCenter, walking ? arrival.road : destination.road),
+    y,
+  );
+  const onward = new THREE.CurvePath();
+  onward.add(toDestination);
+  onward.add(
+    roundedPath([
+      destinationEntry,
+      ...arrivalStreets,
+      ...(walking
+        ? arrival.points.slice().reverse()
+        : [[finish.x, y, finish.z]]),
+    ]),
+  );
+  // CurvePath already maps points by segment length; avoid a second sampled mapping at the bay junction.
+  onward.getPointAt = onward.getPoint;
+  onward.getTangentAt = onward.getTangent;
+  const destinationProgress = toDestination.getLength() / onward.getLength();
+  const destinationBay = walking
+    ? destination.district.walkBay
+    : destination.district.bay;
+  const destinationHold = roundedPath(
+    [
+      destinationEntry,
+      [destinationCenter.x, y, destinationBay.z],
+      [destinationBay.x, y, destinationBay.z],
+    ],
+    0.6,
+  );
+  const destinationResume = reversePath(destinationHold);
+  const destinationPolice = fromBayTo(
+    destination.district.police,
+    destinationBay,
+    destinationCenter,
+    GROUND + 0.23,
+  );
   const bay = walking ? district.walkBay : district.bay;
   const inspectionCenter = {
     x: district.gate.x + (district.gate.side === "west" ? 4.5 : -4.5),
@@ -302,6 +344,11 @@ export function groundRoute(transfer) {
     resume,
     returnFromHold,
     police,
+    destinationProgress,
+    destinationHold,
+    destinationResume,
+    destinationPolice,
+    destinationBay,
     origin,
     destination,
     gate,
@@ -329,11 +376,7 @@ export function flightBearing(chainId) {
 }
 export function flightRoute(transfer) {
   // Stable variation keeps a failed request's return point identical after status updates.
-  let hash = 2166136261;
-  for (const character of String(
-    transfer.id ?? `${transfer.originChainId}:${transfer.destinationChainId}`,
-  ))
-    hash = Math.imul(hash ^ character.charCodeAt(0), 16777619) >>> 0;
+  const hash = requestSeed(transfer);
   const destination =
     (flightBearing(transfer.destinationChainId) * Math.PI) / 180;
   const entry = ((hash % 360) * Math.PI) / 180;
@@ -421,7 +464,7 @@ export function movementSpeed(transfer) {
 
 // Continue to the next actual junction before taking a legal return lane.
 export function roadReturnRoute(transfer, position, heading, toGate = false) {
-  const address = getAddress(transfer.originChainId, transfer.app),
+  const address = getJourneyAddress(transfer),
     y = GROUND + 0.23;
   const target = toGate ? checkpoint(transfer) : address.road;
   let nearest,

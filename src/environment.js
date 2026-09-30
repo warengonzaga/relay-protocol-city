@@ -73,7 +73,7 @@ export function buildEnvironment(scene, models) {
     group.add(object);
     return object;
   }
-  function sign(text, x, y, z, width = 7, chain = null) {
+  function sign(text, x, y, z, width = 7, chain = null, rotation = 0) {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
     canvas.height = 112;
@@ -85,6 +85,7 @@ export function buildEnvironment(scene, models) {
       new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide }),
     );
     mesh.position.set(x, y, z);
+    mesh.rotation.y = rotation;
     group.add(mesh);
     const update = (value) => {
       context.fillStyle = "#17191f";
@@ -213,7 +214,35 @@ export function buildEnvironment(scene, models) {
     });
   }
 
-  // Pavements stop at road junctions; the crosswalks bridge the openings.
+  const junctions = JUNCTIONS.map(({ x, z }) => ({
+    x,
+    z,
+    directions: [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ].filter(([dx, dz]) =>
+      ROAD_SEGMENTS.some((road) => {
+        const px = x + dx * 0.01,
+          pz = z + dz * 0.01;
+        return (
+          px >= Math.min(road.x1, road.x2) &&
+          px <= Math.max(road.x1, road.x2) &&
+          pz >= Math.min(road.z1, road.z2) &&
+          pz <= Math.max(road.z1, road.z2)
+        );
+      }),
+    ),
+  }));
+  const corners = junctions.filter(
+    ({ directions: d }) =>
+      d.length === 2 && d[0][0] * d[1][0] + d[0][1] * d[1][1] === 0,
+  );
+  const crossings = junctions.filter(
+    ({ directions }) => directions.length >= 3,
+  );
+  // Streets join continuously; only real intersections leave crosswalk openings.
   for (const road of ROAD_SEGMENTS) {
     const horizontal = road.z1 === road.z2;
     const begin = horizontal
@@ -223,15 +252,14 @@ export function buildEnvironment(scene, models) {
       ? Math.max(road.x1, road.x2)
       : Math.max(road.z1, road.z2);
     const across = horizontal ? road.z1 : road.x1;
-    const crossings = JUNCTIONS.filter(
-      (j) => Math.abs((horizontal ? j.z : j.x) - across) < 0.01,
-    )
+    const openings = [...crossings, ...corners]
+      .filter((j) => Math.abs((horizontal ? j.z : j.x) - across) < 0.01)
       .map((j) => (horizontal ? j.x : j.z))
       .filter((v) => v >= begin && v <= end)
       .sort((a, b) => a - b);
     const cuts = [
       begin,
-      ...crossings.flatMap((v) => [
+      ...openings.flatMap((v) => [
         Math.max(begin, v - 3.6),
         Math.min(end, v + 3.6),
       ]),
@@ -263,7 +291,7 @@ export function buildEnvironment(scene, models) {
       road.neutral ? "#343846" : "#252934",
     );
     for (let at = begin + 3; at < end - 2; at += 5) {
-      if (crossings.some((v) => Math.abs(v - at) < 5)) continue;
+      if (openings.some((v) => Math.abs(v - at) < 5)) continue;
       box(
         horizontal ? at : across,
         0.824,
@@ -274,6 +302,41 @@ export function buildEnvironment(scene, models) {
         "#b7b9c7",
       );
     }
+  }
+  for (const { x, z, directions } of corners) {
+    const h = directions.find(([dx]) => dx !== 0)[0];
+    const v = directions.find(([, dz]) => dz !== 0)[1];
+    // Join both raised sidewalks around the bend, closing the two nonexistent arms.
+    box(x - h * 1.15, 0.83, z - v * 4.7, 9.5, 0.28, 2.4, "#727380", 0.06);
+    box(x - h * 4.7, 0.83, z + v * 0.05, 2.4, 0.28, 7.1, "#727380", 0.06);
+    box(x + h * 4.7, 0.83, z + v * 4.7, 2.4, 0.28, 2.4, "#727380", 0.06);
+    const bend = new THREE.QuadraticBezierCurve3(
+      new THREE.Vector3(x + h * 3, 0.84, z),
+      new THREE.Vector3(x, 0.84, z),
+      new THREE.Vector3(x, 0.84, z + v * 3),
+    );
+    group.add(
+      new THREE.Mesh(
+        new THREE.TubeGeometry(bend, 12, 0.07, 4, false),
+        material("#b7b9c7"),
+      ),
+    );
+  }
+  for (const { x, z, directions } of crossings) {
+    if (directions.length !== 3) continue;
+    const dx = -directions.reduce((sum, direction) => sum + direction[0], 0);
+    const dz = -directions.reduce((sum, direction) => sum + direction[1], 0);
+    // Close the unused arm of a T junction with uninterrupted raised pavement.
+    box(
+      x + dx * 4.7,
+      0.83,
+      z + dz * 4.7,
+      dx ? 2.4 : 7.2,
+      0.28,
+      dz ? 2.4 : 7.2,
+      "#727380",
+      0.06,
+    );
   }
 
   function driveway(address, garage = true) {
@@ -349,7 +412,41 @@ export function buildEnvironment(scene, models) {
         "#666673",
         0.1,
       );
-      if (address.garage) driveway(address);
+      if (site.role === "bus-terminal") {
+        const apronZ = address.garage.z;
+        box(address.x, 0.81, apronZ, 12, 0.12, 6.2, "#454555", 0.12);
+        box(
+          address.x,
+          0.84,
+          (apronZ + address.road.z) / 2,
+          4,
+          0.08,
+          Math.abs(apronZ - address.road.z),
+          "#4c505e",
+        );
+        for (const side of [-1, 1]) {
+          box(
+            address.x + side * 3.6,
+            0.885,
+            apronZ,
+            0.12,
+            0.025,
+            4.8,
+            "#e6c486",
+          );
+          for (const end of [-1, 1])
+            box(
+              address.x + side * 5.3,
+              2.05,
+              apronZ + end * 2.6,
+              0.22,
+              2.9,
+              0.22,
+              "#878398",
+            );
+        }
+        box(address.x, 3.6, apronZ, 11.2, 0.25, 5.8, chain.color, 0.1);
+      } else if (address.garage && site.garage !== false) driveway(address);
       if (address.door) {
         driveway(address, false);
         const facade =
@@ -381,8 +478,17 @@ export function buildEnvironment(scene, models) {
         );
         updates.set(
           site.slot,
-          sign("App building", address.x, 2.9, signZ, Math.min(7, width + 1)),
+          sign(
+            getDistrictApps(district.id).find((app) => app.slot === site.slot)
+              ?.name ?? "App building",
+            address.x,
+            2.9,
+            signZ,
+            Math.min(7, width + 1),
+          ),
         );
+      } else if (site.role === "bus-terminal") {
+        sign("Bus terminal", address.x, 4.4, signZ, 9);
       } else if (site.role === "commons") {
         sign("App commons", address.x, 3.4, signZ, 6.2);
       } else if (site.role === "police") {
@@ -420,6 +526,8 @@ export function buildEnvironment(scene, models) {
     }
     // One two-way checkpoint serves each neighborhood, including its inspection bays.
     const gate = district.gate;
+    // The route reaches the border; the whole fixture stands just inside it.
+    const gateX = gate.x - gate.outward.x * 0.7;
     const bay = district.bay;
     box(bay.x, 0.82, bay.z, 6.5, 0.11, 5.8, "#454555", 0.15);
     box(
@@ -444,10 +552,10 @@ export function buildEnvironment(scene, models) {
     for (const edge of [-2.8, 2.8])
       box(bay.x + edge, 0.9, bay.z, 0.1, 0.05, 5.3, "#e6c486");
     for (const dz of [-6.6, 6.6])
-      box(gate.x, 3.15, gate.z + dz, 0.7, 5.1, 0.7, "#878398", 0.08);
-    box(gate.x, 5.85, gate.z, 0.95, 0.45, 14, chain.color, 0.1, true);
+      box(gateX, 3.15, gate.z + dz, 0.7, 5.1, 0.7, "#878398", 0.08);
+    box(gateX, 5.85, gate.z, 0.95, 0.45, 14, chain.color, 0.1, true);
     box(
-      gate.x + (gate.side === "east" ? -2 : 2),
+      gateX - gate.outward.x * 2,
       1.7,
       gate.z + 8,
       2.6,
@@ -456,10 +564,10 @@ export function buildEnvironment(scene, models) {
       "#545265",
       0.15,
     );
-    sign("RELAY", gate.x, 6.8, gate.z + 0.3, 5.6);
+    sign("RELAY", gateX, 6.8, gate.z, 5.6, null, Math.PI / 2);
     gateLights.set(
       district.id,
-      box(gate.x, 5.35, gate.z + 6.6, 0.52, 0.52, 0.52, "#6ddbaf", 0.08, true),
+      box(gateX, 5.35, gate.z + 6.6, 0.52, 0.52, 0.52, "#6ddbaf", 0.08, true),
     );
   }
 
@@ -488,25 +596,16 @@ export function buildEnvironment(scene, models) {
       signals.push({ axis, lamps });
     }
   }
-  for (const { x, z } of JUNCTIONS) {
-    for (const direction of [-1, 1])
+  for (const { x, z, directions } of crossings) {
+    for (const [dx, dz] of directions)
       for (let stripe = -2; stripe <= 2; stripe++) {
         box(
-          x + stripe * 0.85,
+          x + (dx ? dx * 4.7 : stripe * 0.85),
           0.84,
-          z + direction * 4.7,
-          0.5,
+          z + (dz ? dz * 4.7 : stripe * 0.85),
+          dx ? 1.5 : 0.5,
           0.025,
-          1.5,
-          "#d8d5e3",
-        );
-        box(
-          x + direction * 4.7,
-          0.84,
-          z + stripe * 0.85,
-          1.5,
-          0.025,
-          0.5,
+          dz ? 1.5 : 0.5,
           "#d8d5e3",
         );
       }

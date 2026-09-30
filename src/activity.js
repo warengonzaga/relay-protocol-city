@@ -94,13 +94,21 @@ export function getChain(id) {
 
 export const CITY_CHAIN_IDS = Object.freeze([1, 8453]);
 
-export function getDistrictTrips(transfers, chainId = "all", direction = "all") {
+export function getDistrictTrips(
+  transfers,
+  chainId = "all",
+  direction = "all",
+) {
   const id = Number(chainId);
   return transfers.filter(
     ({ originChainId: origin, destinationChainId: destination }) => {
-      if (!CITY_CHAIN_IDS.includes(origin) || !CITY_CHAIN_IDS.includes(destination))
+      if (
+        !CITY_CHAIN_IDS.includes(origin) ||
+        !CITY_CHAIN_IDS.includes(destination)
+      )
         return false;
-      if (chainId !== "all" && origin !== id && destination !== id) return false;
+      if (chainId !== "all" && origin !== id && destination !== id)
+        return false;
       if (direction === "all") return true;
       if (direction === "local") return origin === destination;
       if (direction === "incoming") return destination === id && origin !== id;
@@ -146,6 +154,16 @@ const APP_NAMES = {
   instaswap: "InstaSwap",
 };
 
+// Fixed skyline: Ethereum's observed-history successful input USD volume,
+// warehouse coverage from 2025-01-01, checked 2026-09-30. See INTEGRATORS.md.
+export const ETHEREUM_INTEGRATORS = [
+  "funxyz",
+  "lifi",
+  "fomo",
+  "metamask",
+  "okx",
+].map((key) => ({ key, name: APP_NAMES[key], kind: "integrator" }));
+
 function getApp(referrer) {
   const unknown = { key: "unknown", name: "Unknown app", kind: "unknown" };
   if (typeof referrer !== "string") return unknown;
@@ -166,6 +184,7 @@ function getApp(referrer) {
   if (key === "relay.link" || key === "www.relay.link")
     return { key: "relay", name: "Relay", kind: "relay" };
   if (key === "opensea.io" || key === "www.opensea.io") key = "opensea";
+  if (key === "metamaskpay") key = "metamask";
   // A quote's referrer is reported attribution, not verified app ownership.
   return { key, name: APP_NAMES[key] ?? key, kind: "integrator" };
 }
@@ -315,6 +334,14 @@ export function createDemoTransfers(count = 36, scenario = "all") {
   const size = Number.isFinite(count)
     ? Math.max(0, Math.min(100, Math.floor(count)))
     : 36;
+  if (scenario === "destination-pending") {
+    return createDemoTransfers(Math.min(size, 2)).map((trip) => ({
+      ...trip,
+      stage: "fill",
+      status: "pending",
+      demoScenario: "destination-pending",
+    }));
+  }
   const now = Date.now();
   const amounts = [
     24, 386, 2_450, 42, 18_600, 680, 7_240, 146_000, 62, 940, 2_480_000, 5_600,
@@ -369,9 +396,13 @@ export function createDemoTransfers(count = 36, scenario = "all") {
       updatedAt: new Date(now).toISOString(),
       url: null,
       kind: classifyTransfer(amountUsd),
-      app: getApp(refs[scenario]),
-      status: "pending",
-      stage: "origin",
+      app: getApp(
+        index >= 12 && scenario !== 3
+          ? ETHEREUM_INTEGRATORS[(index - 12) % ETHEREUM_INTEGRATORS.length].key
+          : refs[scenario],
+      ),
+      status: demoScenario === "success" ? "success" : "pending",
+      stage: demoScenario === "success" ? "complete" : "origin",
       durationSeconds: scenario === 3 ? 1 : 2 + scenario * 2,
       speedSource: "estimated",
       failureReason: null,

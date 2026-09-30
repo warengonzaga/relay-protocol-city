@@ -38,10 +38,10 @@
     <main id="city-app">
       <div
         id="world"
-        role="img"
+        role="region"
         aria-label="Interactive miniature city. Chains are districts. Transfers travel between houses or app buildings. Use the accessible activity list to inspect transfers."
       ></div>
-      <div id="chain-labels" aria-hidden="true"></div>
+      <div id="chain-labels"></div>
       <section class="intro" aria-labelledby="city-title">
         <h1 id="city-title">Welcome to<br />Ethereum.</h1>
         <p id="district-description">
@@ -86,6 +86,7 @@
           <option value="same-chain">Same-chain sprint</option>
           <option value="opensea">OpenSea: ETH to Base</option>
           <option value="pending">Waiting at the toll</option>
+          <option value="destination-pending">Destination confirmation</option>
           <option value="failed">Failed: return home</option>
           <option value="blocked">Blocked: police escort</option>
           <option value="trains">Two-track train queue</option>
@@ -232,6 +233,9 @@
         ><span>Click a district <i>·</i> Drag to orbit</span>
       </div>
       <div class="scene-controls" role="group" aria-label="City controls">
+        <span id="navigation-hint" class="navigation-hint"
+          >Arrows / WASD move · Q / E rotate · + / − zoom</span
+        >
         <button
           id="pause-button"
           aria-label="Pause traffic"

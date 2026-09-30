@@ -130,8 +130,9 @@ test("demo fixtures are clearly artificial and cover all six vehicles", () => {
       (row) =>
         row.id.startsWith("demo-") &&
         row.url === null &&
-        row.status === "pending" &&
-        row.stage === "origin",
+        row.status ===
+          (row.demoScenario === "success" ? "success" : "pending") &&
+        row.stage === (row.demoScenario === "success" ? "complete" : "origin"),
     ),
   );
 });
@@ -193,25 +194,36 @@ test("district selection excludes unsupported routes and partitions local, incom
     { id: "eth-local", originChainId: 1, destinationChainId: 1 },
     { id: "base-local", originChainId: 8453, destinationChainId: 8453 },
     { id: "unsupported-origin", originChainId: 56, destinationChainId: 1 },
-    { id: "unsupported-destination", originChainId: 1, destinationChainId: 137 },
+    {
+      id: "unsupported-destination",
+      originChainId: 1,
+      destinationChainId: 137,
+    },
     { id: "unsupported-local", originChainId: 56, destinationChainId: 56 },
   ];
   const ids = (rows) => rows.map(({ id }) => id);
   assert.deepEqual(ids(getDistrictTrips(trips)), [
-    "out", "in", "eth-local", "base-local",
+    "out",
+    "in",
+    "eth-local",
+    "base-local",
   ]);
   assert.deepEqual(ids(getDistrictTrips(trips, "1", "incoming")), ["in"]);
   assert.deepEqual(ids(getDistrictTrips(trips, 1, "outgoing")), ["out"]);
   assert.deepEqual(ids(getDistrictTrips(trips, 1, "local")), ["eth-local"]);
   assert.deepEqual(ids(getDistrictTrips(trips, "all", "local")), [
-    "eth-local", "base-local",
+    "eth-local",
+    "base-local",
   ]);
   for (const chainId of CITY_CHAIN_IDS) {
     const groups = ["incoming", "outgoing", "local"].flatMap((direction) =>
       getDistrictTrips(trips, chainId, direction),
     );
     assert.equal(new Set(groups).size, groups.length);
-    assert.deepEqual(new Set(groups), new Set(getDistrictTrips(trips, chainId)));
+    assert.deepEqual(
+      new Set(groups),
+      new Set(getDistrictTrips(trips, chainId)),
+    );
   }
   assert.deepEqual(getDistrictTrips(trips, 56), []);
 });
@@ -283,6 +295,22 @@ test("app attribution keeps missing data unknown and strips private referrer suf
     kind: "integrator",
   });
   assert.ok(!JSON.stringify(result).includes("private-wallet-id"));
+  for (const [referrer, key, name] of [
+    ["funxyz|private-correlation", "funxyz", "Fun"],
+    ["lifi", "lifi", "LI.FI"],
+    ["fomo", "fomo", "Fomo"],
+    ["metamask", "metamask", "MetaMask"],
+    ["metamaskpay", "metamask", "MetaMask"],
+    ["okx", "okx", "OKX"],
+  ]) {
+    const trip = normalizeRequest({ ...v2, data: { ...v2.data, referrer } });
+    assert.deepEqual(trip.app, { key, name, kind: "integrator" });
+    assert.ok(!JSON.stringify(trip).includes("private-correlation"));
+  }
+  assert.equal(
+    normalizeRequest({ ...v2, referrer: "metamaskpay-unknown" }).app.key,
+    "metamaskpay-unknown",
+  );
   assert.equal(
     normalizeRequest({ ...v2, referrer: "relay.link.evil.example" }).app.kind,
     "integrator",

@@ -10,6 +10,7 @@ import {
   createRailCurve,
   getAddress,
   getTowerAddress,
+  getDistrictApps,
   getDistrict,
   getStationProgress,
   getSignalState,
@@ -24,16 +25,14 @@ import {
   movementSpeed,
   reversePath,
 } from "../src/routes.js";
+import { ETHEREUM_INTEGRATORS } from "../src/activity.js";
 
 const relay = { key: "relay", name: "Relay", kind: "relay" };
 const integrators = [
-  "opensea",
-  "test-app-b",
-  "test-app-c",
-  "test-app-d",
-  "test-app-e",
-  "test-app-f",
-].map((key) => ({ key, name: key, kind: "integrator" }));
+  ...ETHEREUM_INTEGRATORS,
+  { key: "opensea", name: "OpenSea", kind: "integrator" },
+];
+const initialEthereumApps = getDistrictApps(1);
 const close = (actual, expected, message) =>
   assert.ok(
     Math.abs(actual - expected) < 0.02,
@@ -235,127 +234,133 @@ test("walking routes and late reversals stay on marked junction sidewalks", () =
     })),
   );
   for (const app of [relay, ...integrators, { kind: "unknown" }])
-    for (const origin of DISTRICTS)
-      for (const destination of DISTRICTS) {
-        const route = groundRoute({
-          originChainId: origin.id,
-          destinationChainId: destination.id,
-          app,
-          kind: "pedestrian",
-        });
-        const curves = [
-          route.depart,
-          route.onward,
-          route.hold,
-          route.returnFromHold,
-        ];
-        for (const progress of [0.2, 0.65, 0.98]) {
-          const reversed = reversePath(route.onward, progress);
-          close(
-            reversed.getLength(),
-            route.onward.getLength() * progress,
-            "partial return length",
-          );
-          for (const t of [0, 0.17, 0.63, 1]) {
-            assert.ok(
-              reversed
-                .getPointAt(t)
-                .distanceTo(route.onward.getPointAt(progress * (1 - t))) < 1e-9,
-              "returns must preserve original pavement geometry exactly",
+    for (const variant of [0, 1])
+      for (const origin of DISTRICTS)
+        for (const destination of DISTRICTS) {
+          const route = groundRoute({
+            id: `local-${variant}`,
+            originChainId: origin.id,
+            destinationChainId: destination.id,
+            app,
+            kind: "pedestrian",
+          });
+          const curves = [
+            route.depart,
+            route.onward,
+            route.hold,
+            route.returnFromHold,
+          ];
+          for (const progress of [0.2, 0.65, 0.98]) {
+            const reversed = reversePath(route.onward, progress);
+            close(
+              reversed.getLength(),
+              route.onward.getLength() * progress,
+              "partial return length",
             );
-            assert.ok(
-              reversed.getPoint(t).distanceTo(reversed.getPointAt(t)) < 1e-9,
-            );
-            assert.ok(
-              reversed
-                .getTangentAt(t)
-                .dot(route.onward.getTangentAt(progress * (1 - t))) < -0.999,
-            );
-          }
-          curves.push(reversed);
-        }
-        for (const curve of curves)
-          for (const { point: p } of sample(curve)) {
-            const owner = getDistrictAt(p.x, p.z);
-            assert.ok(
-              !owner || owner === origin || owner === destination,
-              "walking returns must not enter a third district",
-            );
-            for (const s of ROAD_SEGMENTS) {
-              const horizontal = s.z1 === s.z2;
-              const across = horizontal
-                ? Math.abs(p.z - s.z1)
-                : Math.abs(p.x - s.x1);
-              const along = horizontal ? p.x : p.z;
-              if (
-                across >= 3.35 ||
-                along < (horizontal ? s.x1 : s.z1) ||
-                along > (horizontal ? s.x2 : s.z2)
-              )
-                continue;
+            for (const t of [0, 0.17, 0.63, 1]) {
               assert.ok(
-                JUNCTIONS.some((j) =>
-                  horizontal
-                    ? Math.abs(j.z - s.z1) < 0.001 &&
-                      Math.abs(Math.abs(p.x - j.x) - 4.7) < 1.2
-                    : Math.abs(j.x - s.x1) < 0.001 &&
-                      Math.abs(Math.abs(p.z - j.z) - 4.7) < 1.2,
-                ),
-                `off-crosswalk at ${p.x},${p.z}`,
+                reversed
+                  .getPointAt(t)
+                  .distanceTo(route.onward.getPointAt(progress * (1 - t))) <
+                  1e-9,
+                "returns must preserve original pavement geometry exactly",
+              );
+              assert.ok(
+                reversed.getPoint(t).distanceTo(reversed.getPointAt(t)) < 1e-9,
+              );
+              assert.ok(
+                reversed
+                  .getTangentAt(t)
+                  .dot(route.onward.getTangentAt(progress * (1 - t))) < -0.999,
               );
             }
+            curves.push(reversed);
           }
-      }
+          for (const curve of curves)
+            for (const { point: p } of sample(curve)) {
+              const owner = getDistrictAt(p.x, p.z);
+              assert.ok(
+                !owner || owner === origin || owner === destination,
+                "walking returns must not enter a third district",
+              );
+              for (const s of ROAD_SEGMENTS) {
+                const horizontal = s.z1 === s.z2;
+                const across = horizontal
+                  ? Math.abs(p.z - s.z1)
+                  : Math.abs(p.x - s.x1);
+                const along = horizontal ? p.x : p.z;
+                if (
+                  across >= 3.35 ||
+                  along < (horizontal ? s.x1 : s.z1) ||
+                  along > (horizontal ? s.x2 : s.z2)
+                )
+                  continue;
+                assert.ok(
+                  JUNCTIONS.some((j) =>
+                    horizontal
+                      ? Math.abs(j.z - s.z1) < 0.001 &&
+                        Math.abs(Math.abs(p.x - j.x) - 4.7) < 1.2
+                      : Math.abs(j.x - s.x1) < 0.001 &&
+                        Math.abs(Math.abs(p.z - j.z) - 4.7) < 1.2,
+                  ),
+                  `off-crosswalk at ${p.x},${p.z}`,
+                );
+              }
+            }
+        }
 });
 
 test("cars use right-hand lanes on the authored street network", () => {
   for (const app of [relay, ...integrators, { kind: "unknown" }])
-    for (const origin of DISTRICTS)
-      for (const destination of DISTRICTS) {
-        const transfer = {
-          originChainId: origin.id,
-          destinationChainId: destination.id,
-          app,
-          kind: "car",
-        };
-        const route = groundRoute(transfer);
-        const lateReturn = roadReturnRoute(
-          transfer,
-          route.onward.getPointAt(0.65),
-          route.onward.getTangentAt(0.65),
-          true,
-        );
-        assert.ok(
-          lateReturn.getPointAt(1).distanceTo(route.hold.getPointAt(0)) < 0.001,
-          "blocked returns must meet the inspection route without a teleport",
-        );
-        for (const { point: p, tangent: t } of sample(route.onward, 150)) {
-          if (
-            JUNCTIONS.some(
-              (j) => Math.abs(p.x - j.x) < 5 && Math.abs(p.z - j.z) < 5,
-            )
-          )
-            continue;
-          for (const s of ROAD_SEGMENTS) {
+    for (const variant of [0, 1])
+      for (const origin of DISTRICTS)
+        for (const destination of DISTRICTS) {
+          const transfer = {
+            id: `local-${variant}`,
+            originChainId: origin.id,
+            destinationChainId: destination.id,
+            app,
+            kind: "car",
+          };
+          const route = groundRoute(transfer);
+          const lateReturn = roadReturnRoute(
+            transfer,
+            route.onward.getPointAt(0.65),
+            route.onward.getTangentAt(0.65),
+            true,
+          );
+          assert.ok(
+            lateReturn.getPointAt(1).distanceTo(route.hold.getPointAt(0)) <
+              0.001,
+            "blocked returns must meet the inspection route without a teleport",
+          );
+          for (const { point: p, tangent: t } of sample(route.onward, 150)) {
             if (
-              s.z1 === s.z2 &&
-              p.x > s.x1 &&
-              p.x < s.x2 &&
-              Math.abs(p.z - s.z1) < 2 &&
-              Math.abs(t.x) > 0.999
+              JUNCTIONS.some(
+                (j) => Math.abs(p.x - j.x) < 5 && Math.abs(p.z - j.z) < 5,
+              )
             )
-              assert.equal(Math.sign(t.x), Math.sign(p.z - s.z1));
-            if (
-              s.x1 === s.x2 &&
-              p.z > s.z1 &&
-              p.z < s.z2 &&
-              Math.abs(p.x - s.x1) < 2 &&
-              Math.abs(t.z) > 0.999
-            )
-              assert.equal(Math.sign(t.z), -Math.sign(p.x - s.x1));
+              continue;
+            for (const s of ROAD_SEGMENTS) {
+              if (
+                s.z1 === s.z2 &&
+                p.x > s.x1 &&
+                p.x < s.x2 &&
+                Math.abs(p.z - s.z1) < 2 &&
+                Math.abs(t.x) > 0.999
+              )
+                assert.equal(Math.sign(t.x), Math.sign(p.z - s.z1));
+              if (
+                s.x1 === s.x2 &&
+                p.z > s.z1 &&
+                p.z < s.z2 &&
+                Math.abs(p.x - s.x1) < 2 &&
+                Math.abs(t.z) > 0.999
+              )
+                assert.equal(Math.sign(t.z), -Math.sign(p.x - s.x1));
+            }
           }
         }
-      }
 });
 
 test("only onward routes cross origin borders and inspection bays clear the through lane", () => {
@@ -415,10 +420,26 @@ test("only onward routes cross origin borders and inspection bays clear the thro
   }
 });
 
-test("authored app parcels preserve attribution, overflow uses commons, and outside chains are not aliased", () => {
+test("ranked Ethereum parcels stay fixed across sample order while other apps use commons and unknown chains stay unmapped", () => {
   const apps = integrators;
+  const ranking = ETHEREUM_INTEGRATORS.map(({ key, name }) => ({ key, name }));
+  assert.deepEqual(
+    initialEthereumApps.map(({ key, name }) => ({ key, name })),
+    ranking,
+    "ranked parcels exist before any activity sample registers apps",
+  );
+  assert.deepEqual(
+    getDistrictApps(1).map(({ key, name }) => ({ key, name })),
+    ranking,
+  );
   registerApps(
-    apps.map((app) => ({ app, originChainId: 1, destinationChainId: 8453 })),
+    apps
+      .toReversed()
+      .map((app) => ({ app, originChainId: 1, destinationChainId: 8453 })),
+  );
+  assert.deepEqual(
+    getDistrictApps(1).map(({ key, name }) => ({ key, name })),
+    ranking,
   );
   for (let slot = 0; slot < 5; slot++) {
     const address = getAddress(1, apps[slot]),
@@ -428,8 +449,15 @@ test("authored app parcels preserve attribution, overflow uses commons, and outs
     assert.equal(address.z, tower.z);
   }
   assert.equal(getAddress(1, apps[5]).type, "commons");
-  assert.equal(getAddress(8453, apps[0]).type, "integrator");
-  assert.equal(getAddress(8453, apps[1]).type, "commons");
+  const observed = getDistrictApps(8453)[0];
+  assert.equal(getAddress(8453, observed).type, "integrator");
+  assert.equal(
+    getAddress(
+      8453,
+      apps.find((app) => app.key !== observed.key),
+    ).type,
+    "commons",
+  );
   assert.equal(getAddress(8453, { kind: "unknown" }).type, "commons");
   assert.equal(getDistrict(999999999).visible, false);
   assert.equal(getAddress(999999999, relay).type, "unmapped");
@@ -449,11 +477,171 @@ test("authored app parcels preserve attribution, overflow uses commons, and outs
     app: apps[0],
     kind: "car",
   });
-  assert.equal(route.origin.app.key, "opensea");
-  assert.equal(route.destination.app.key, "opensea");
+  assert.equal(route.origin.app.key, apps[0].key);
+  assert.equal(route.destination.app.key, apps[0].key);
+  assert.equal(
+    getAddress(1, apps[5]).app.key,
+    "opensea",
+    "commons retains attribution without inventing a dedicated OpenSea tower",
+  );
   const police = route.police.getPointAt(1);
   close(police.x, route.origin.district.police.garage.x, "police x");
   close(police.z, route.origin.district.police.garage.z, "police z");
+});
+
+test("destination inspection paths meet the onward route exactly and end at the destination bay and police station", () => {
+  for (const kind of ["pedestrian", "car"])
+    for (const origin of DISTRICTS)
+      for (const destination of DISTRICTS) {
+        const route = groundRoute({
+          originChainId: origin.id,
+          destinationChainId: destination.id,
+          kind,
+          app: relay,
+        });
+        const junction = route.onward.getPointAt(route.destinationProgress);
+        assert.ok(
+          junction.distanceTo(route.destinationHold.getPointAt(0)) < 0.001,
+        );
+        assert.ok(
+          junction.distanceTo(route.destinationResume.getPointAt(1)) < 0.001,
+        );
+        const held = route.destinationHold.getPointAt(1);
+        close(held.x, route.destinationBay.x, "destination bay x");
+        close(held.z, route.destinationBay.z, "destination bay z");
+        assert.ok(Math.abs(held.z - destination.roadZ) >= 9);
+        assert.ok(held.distanceTo(route.destinationPolice.getPointAt(0)) < 0.2);
+        for (const curve of [
+          route.destinationHold,
+          route.destinationResume,
+          route.destinationPolice,
+        ])
+          for (const { point } of sample(curve, 60))
+            assert.equal(getDistrictAt(point.x, point.z), destination);
+        const police = route.destinationPolice.getPointAt(1);
+        close(police.x, destination.police.garage.x, "destination police x");
+        close(police.z, destination.police.garage.z, "destination police z");
+      }
+});
+
+test("bus journeys and failed returns use terminals while Relay and attributed travelers use their own parcels", () => {
+  registerApps([
+    { app: integrators[0], originChainId: 1, destinationChainId: 8453 },
+  ]);
+  const sourceSite = (address) =>
+    address.district.sites.find(
+      (site) => site.address.x === address.x && site.address.z === address.z,
+    );
+  for (const origin of DISTRICTS)
+    for (const destination of DISTRICTS)
+      for (const app of [relay, integrators[0]])
+        for (const kind of ["pedestrian", "car", "bus"]) {
+          const transfer = {
+            id: "parcel-route",
+            originChainId: origin.id,
+            destinationChainId: destination.id,
+            kind,
+            app,
+          };
+          const route = groundRoute(transfer);
+          for (const address of [route.origin, route.destination]) {
+            const site = sourceSite(address);
+            assert.ok(site);
+            assert.equal(
+              site.role,
+              kind === "bus"
+                ? "bus-terminal"
+                : app === relay
+                  ? "relay"
+                  : "integrator",
+            );
+            if (kind !== "bus" && app === relay)
+              assert.equal(
+                site.garage !== false,
+                kind === "car",
+                "Relay walkers use houses without garages; cars use garage houses",
+              );
+            if (kind !== "bus" && app !== relay)
+              assert.equal(address.app.key, app.key);
+          }
+          const start =
+            kind === "pedestrian" ? route.origin.door : route.origin.garage;
+          const end =
+            kind === "pedestrian"
+              ? route.destination.door
+              : route.destination.garage;
+          close(route.depart.getPointAt(0).x, start.x, "departure x");
+          close(route.depart.getPointAt(0).z, start.z, "departure z");
+          close(route.onward.getPointAt(1).x, end.x, "destination x");
+          close(route.onward.getPointAt(1).z, end.z, "destination z");
+          assert.ok(
+            route.returnFromHold
+              .getPointAt(1)
+              .distanceTo(route.depart.getPointAt(0)) < 0.001,
+          );
+          if (origin === destination)
+            assert.ok(
+              route.depart
+                .getPointAt(0)
+                .distanceTo(route.onward.getPointAt(1)) < 0.001,
+            );
+          if (kind === "bus") {
+            const returned = roadReturnRoute(
+              transfer,
+              route.onward.getPointAt(0.5),
+              route.onward.getTangentAt(0.5),
+            );
+            close(
+              returned.getPointAt(1).x,
+              start.x,
+              "late bus return terminal x",
+            );
+            close(
+              returned.getPointAt(1).z,
+              start.z,
+              "late bus return terminal z",
+            );
+          }
+        }
+});
+
+test("same-chain requests choose stable varied local loops and return to their exact starting parcel", () => {
+  for (const district of DISTRICTS)
+    for (const kind of ["pedestrian", "car"]) {
+      const paths = new Set();
+      for (let index = 0; index < 6; index++) {
+        const transfer = {
+          id: `local-${index}`,
+          originChainId: district.id,
+          destinationChainId: district.id,
+          kind,
+          app: integrators[0],
+        };
+        const route = groundRoute(transfer);
+        const repeat = groundRoute({ ...transfer, stage: "complete" });
+        paths.add(
+          route.onward
+            .getPointAt(0.2)
+            .toArray()
+            .map((n) => n.toFixed(2))
+            .join(","),
+        );
+        assert.ok(
+          route.depart.getPointAt(0).distanceTo(route.onward.getPointAt(1)) <
+            0.001,
+        );
+        for (const progress of [0, 0.2, 0.7, 1])
+          assert.ok(
+            route.onward
+              .getPointAt(progress)
+              .distanceTo(repeat.onward.getPointAt(progress)) < 0.001,
+            "API status changes must not change the local loop",
+          );
+        for (const { point } of sample(route.onward, 100))
+          assert.equal(getDistrictAt(point.x, point.z), district);
+      }
+      assert.equal(paths.size, 2, "both authored loop directions must be used");
+    }
 });
 
 test("twin railway loops serve every station and return to their tunnel in opposite directions", () => {

@@ -11,19 +11,19 @@ npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:5173. Choose **Demo city → Try a journey** to explore same-chain sprints, OpenSea ETH → Base, pending checkpoints, failed returns, blocked escorts, train queues, or sky routes. **Relay activity** uses the configured API feed, or clearly labeled demo data if unavailable.
+Open http://127.0.0.1:5173. Choose **Demo city → Try a journey** to explore same-chain sprints, OpenSea ETH → Base, origin or destination confirmation checkpoints, failed returns, blocked escorts, train queues, or sky routes. **Relay activity** uses the configured API feed, or clearly labeled demo data if unavailable.
 
-The city opens focused on Ethereum. Click a district or choose it from the selector to focus it; **City overview** shows both districts. The focused feed offers **All**, **In**, **Out**, and **Local** trips. Drag to orbit, scroll or use buttons to zoom, and select travelers or activity rows for details. Traffic can be paused; reduced-motion preferences start it paused. **Release demo gates** changes simulation only.
+The city opens focused on Ethereum. Click a district, its hovered name, or choose it from the selector to isolate it at its border. Clicking outside the district or **City overview** restores the full map. The focused feed offers **All**, **In**, **Out**, and **Local** trips. Hold **arrow keys or WASD** to move across the map; click the map to return keyboard focus after using a control. Use **Q/E** to rotate and **+/−** to zoom. Drag to orbit, right-drag or use two fingers to pan, and scroll or use buttons to zoom. Select travelers or activity rows for details. Traffic can be paused; reduced-motion preferences start it paused. **Release demo gates** changes simulation only.
 
 ## The city
 
-- Two manually authored districts: Ethereum is the first detailed neighborhood, with varied building heights, footprints, blocks, and app sites. Base is a compact connection point awaiting its own neighborhood design. Their layouts and building sizes are fixed, not generated or resized from sample counts. Each district has one gate for incoming and outgoing ground traffic. A neutral highway and sidewalks connect the gates, so crosschain ground trips use their origin, the shared connection, and their destination.
-- Pedestrians use sidewalks and junction crosswalks. Same-chain trips loop back to the original address and run. Other pedestrians sprint when a positive measured or estimated duration is at most 15 seconds; the inspector distinguishes those timing sources.
-- Relay app journeys use houses and garages. Integrator names come from the reported referrer namespace. Missing attribution stays unknown. Ethereum has five dedicated app sites; Base has one. Each site accepts one observed integrator, while further or unknown apps use that district's commons. Building forms and locations follow the authored neighborhood plan.
+- Two manually authored districts: Ethereum is the first detailed neighborhood, with clustered homes, varied building heights, grass pockets, street trees, and a rounded uneven outline. Base is a compact connection point awaiting its own neighborhood design. Their layouts and building sizes are fixed, not generated or resized from sample counts. Each district has one gate for incoming and outgoing ground traffic. Road corners turn continuously; three-way junctions retain the sidewalk on their closed side. A neutral highway and sidewalks connect the gates, so crosschain ground trips use their origin, the shared connection, and their destination.
+- Pedestrians use sidewalks and junction crosswalks and pass through one another without collision stops. Same-chain trips loop back to the original address and run. Other pedestrians sprint when a positive measured or estimated duration is at most 15 seconds; the inspector distinguishes those timing sources.
+- Relay pedestrians use houses without garages; Relay cars use houses with garages. Each request keeps its chosen home across status updates. Integrator pedestrians and cars use their app building and its garage. Same-chain trips take a stable, varied local loop and return to the exact origin address. Buses travel between district bus terminals. Integrator names come from the reported referrer namespace. Missing attribution stays unknown. Ethereum has five fixed named buildings, tallest first: Fun, LI.FI, Fomo, MetaMask, and OKX, ranked by available-history Ethereum volume. [Ranking and attribution evidence](INTEGRATORS.md) documents the dated snapshot and API visibility limits. Other or unknown apps use the commons; Base retains one observed app site. Building forms and locations follow the authored neighborhood plan.
 - Cars, buses, and trucks use road lanes, shared timed traffic lights, garages, and following-distance queues. Failed cars turn into a return lane.
-- Toll gates sit at district borders and illustrate the origin-to-fill handoff. Confirmed trips pass without a timed toll stop. Pending crosschain ground requests wait in an off-lane inspection bay for API evidence; further checks remain in the tracked queue so they cannot block passing traffic. Failed/refunded requests return. Exact `BLOCKED` or `BLOCKED_WALLET` failures use police boarding or towing to the origin district's station. Police vehicles carry alternating red/blue lights during pickup and escort. Lights freeze with pause and remain steady under reduced motion. This is playful visualization of an API outcome, not a claim about a user's conduct.
-- The elevated tracks, gantries, and platforms use one shared route geometry. Trains enter from a covered rail yard, stop at their origin and destination stations, then disappear through the tunnel. Two opposite lanes allow one train each; further trains queue. Pending fills remain at the destination until confirmed, and later failures return to the origin station.
-- Flight bearings are independent of district layout: Base is north at 0° and Ethereum is at 30°. Flights enter from varied directions, deterministic per request so failure returns stay consistent, and turn toward the destination bearing shown on their label. Unconfirmed fills circle until completion; failures take a return flight.
+- Toll gates sit at district borders and illustrate the origin-to-fill handoff. Confirmed trips pass without a timed toll stop. Origin-pending crosschain ground requests wait in an off-lane inspection bay for API evidence; destination-stage requests awaiting confirmation wait at the destination gate bay, then continue only after completion. Later failures there use an escort or tow to that destination district's police station. Further checks remain in the tracked queue when the bay is occupied. Origin failures or refunds return home; exact `BLOCKED` or `BLOCKED_WALLET` failures use police boarding or towing to the origin district's station. Police vehicles carry alternating red/blue lights during pickup and escort. Lights freeze with pause and remain steady under reduced motion. This is playful visualization of an API outcome, not a claim about a user's conduct.
+- The elevated tracks, gantries, and platforms use one shared route geometry. Trains enter from a covered rail yard, stop at their origin and destination stations, then disappear through the tunnel. Two opposite lanes allow one train each; further trains queue. Only confirmed-success requests animate as trains; pending, failed, or refunded train-sized requests remain absent from the map.
+- Airplanes appear only in City overview; district focus has no airplanes or flyover control. Flight bearings are independent of district layout: Base is north at 0° and Ethereum is at 30°. Flights enter from varied directions, deterministic per request so failure returns stay consistent, and turn toward the destination bearing shown on their label. Unconfirmed fills circle until completion; failures take a return flight.
 
 Tiers: under $100 pedestrian; $100–$1,000 car; $1,000–$10,000 bus; $10,000–$100,000 truck; $100,000–$1 million train; $1 million or more airplane. These visualization thresholds are editable editorial choices.
 
@@ -59,10 +59,10 @@ Tests cover normalization, attribution, stage evidence, bounded tracking, safe s
 
 One repository supplies two deployments:
 
-| Host | Contents | Configuration |
-| --- | --- | --- |
-| GitHub Pages | `dist/`: the city, models, fonts, and other static assets | Public `VITE_API_URL` build variable |
-| Railway | `server.mjs` and `src/activity.js` in a small Node container | Private `RELAY_API_KEY` runtime variable |
+| Host         | Contents                                                     | Configuration                            |
+| ------------ | ------------------------------------------------------------ | ---------------------------------------- |
+| GitHub Pages | `dist/`: the city, models, fonts, and other static assets    | Public `VITE_API_URL` build variable     |
+| Railway      | `server.mjs` and `src/activity.js` in a small Node container | Private `RELAY_API_KEY` runtime variable |
 
 The browser renders the 3D scene. Railway fetches and caches Relay activity; it serves no frontend assets in `API_ONLY` mode. The Docker build context allows only the API files, package metadata, and license. It excludes `.env`, `node_modules`, `dist`, and the models, and installs no dependencies.
 
@@ -72,12 +72,12 @@ Connect this repository's `main` branch with the repository root as the service 
 
 Set these service variables:
 
-| Variable | Value |
-| --- | --- |
-| `RELAY_API_KEY` | Your private Relay key, entered only in Railway |
-| `RELAY_NETWORK_SCOPE` | `integrator` unless Relay confirms global access |
-| `RELAY_ALLOW_LEGACY_PREVIEW` | `false` |
-| `ALLOWED_ORIGINS` | `https://waren.build` |
+| Variable                     | Value                                            |
+| ---------------------------- | ------------------------------------------------ |
+| `RELAY_API_KEY`              | Your private Relay key, entered only in Railway  |
+| `RELAY_NETWORK_SCOPE`        | `integrator` unless Relay confirms global access |
+| `RELAY_ALLOW_LEGACY_PREVIEW` | `false`                                          |
+| `ALLOWED_ORIGINS`            | `https://waren.build`                            |
 
 `ALLOWED_ORIGINS` accepts comma-separated exact origins, without paths or trailing slashes. This repository's Pages site inherits the account's `waren.build` domain. Use your deployed frontend's origin when forking or changing domains. This controls browser access; the public activity endpoint is not user-authenticated.
 

@@ -4,6 +4,8 @@ import { loadModels } from "./models.js";
 import { buildEnvironment } from "./environment.js";
 import { createTraffic } from "./traffic.js";
 import { chainMark } from "./chain-marks.js";
+import { createCameraNavigation } from "./camera-navigation.js";
+import { createDistrictFocus } from "./district-focus.js";
 import {
   GROUND,
   getDistrictAt,
@@ -36,6 +38,7 @@ export async function createCity(
   renderer.toneMappingExposure = 1.15;
   container.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
+  const districtFocus = createDistrictFocus(renderer, scene);
   scene.background = new THREE.Color("#161616");
   const camera = new THREE.OrthographicCamera(
     -60,
@@ -48,7 +51,11 @@ export async function createCity(
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = !options.reducedMotion;
   controls.dampingFactor = 0.075;
-  controls.enablePan = false;
+  controls.enablePan = true;
+  controls.screenSpacePanning = false;
+  renderer.domElement.tabIndex = 0;
+  renderer.domElement.setAttribute("aria-label", "City map");
+  renderer.domElement.setAttribute("aria-describedby", "navigation-hint");
   controls.minPolarAngle = 0.3;
   controls.maxPolarAngle = 1.18;
   controls.minZoom = 0.6;
@@ -99,7 +106,9 @@ export async function createCity(
   const traffic = createTraffic(scene, models, environment, onSelect);
   traffic.setReducedMotion(Boolean(options.reducedMotion));
   const labels = environment.labels.map(({ chain, position }) => {
-    const element = document.createElement("div");
+    const element = document.createElement("button");
+    element.type = "button";
+    element.setAttribute("aria-label", `Focus ${chain.name} district`);
     element.className = "chain-label";
     element.style.visibility = "hidden";
     const symbol = document.createElement("span");
@@ -109,6 +118,14 @@ export async function createCity(
     const text = document.createElement("span");
     text.textContent = chain.name;
     element.append(symbol, text);
+    element.addEventListener("click", () => {
+      options.onFocusDistrict?.(chain.id);
+      renderer.domElement.focus({ preventScroll: true });
+    });
+    element.addEventListener("pointerleave", () => {
+      hoverPoint = null;
+      visibleChainId = null;
+    });
     labelsContainer.appendChild(element);
     return { element, position, chainId: chain.id };
   });
@@ -123,6 +140,17 @@ export async function createCity(
   let reducedMotion = Boolean(options.reducedMotion);
   let hoverPoint = null;
   let visibleChainId = null;
+  const navigation = createCameraNavigation(
+    renderer.domElement,
+    camera,
+    controls,
+    () => {
+      cameraTransition = null;
+      hoverPoint = null;
+      visibleChainId = null;
+    },
+    zoom,
+  );
   const projection = new THREE.Vector3();
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -GROUND);
   const raycaster = new THREE.Raycaster();
@@ -174,6 +202,7 @@ export async function createCity(
     renderer.setSize(width, height, false);
   }
   function frameDistrict(district, animate = true) {
+    navigation.clear();
     const previousView = {
       position: camera.position.clone(),
       target: controls.target.clone(),
@@ -184,6 +213,7 @@ export async function createCity(
       zoom: camera.zoom,
     };
     focusedDistrict = district;
+    districtFocus.focus(district);
     const area = district?.polygonBounds ?? bounds;
     const centerX = ((area.left ?? area.minX) + (area.right ?? area.maxX)) / 2;
     const centerZ = ((area.top ?? area.minZ) + (area.bottom ?? area.maxZ)) / 2;
@@ -218,6 +248,11 @@ export async function createCity(
   function reset() {
     frameDistrict(null);
   }
+  function zoom(amount) {
+    cameraTransition = null;
+    camera.zoom = THREE.MathUtils.clamp(camera.zoom * amount, 0.6, 2.4);
+    camera.updateProjectionMatrix();
+  }
   function focusChain(id) {
     const district = getDistrict(Number(id));
     if (district?.id) frameDistrict(district);
@@ -236,6 +271,7 @@ export async function createCity(
       // Small physics steps keep light stops and queues stable on slower frames.
       for (let remaining = dt; remaining > 0; remaining -= 0.05)
         traffic.update(Math.min(0.05, remaining));
+      navigation.update(dt);
       if (cameraTransition) {
         const progress = Math.min(1, (time - cameraTransition.start) / 460);
         const eased = 1 - (1 - progress) ** 3;
@@ -259,7 +295,10 @@ export async function createCity(
         .filter((element) => !element.hidden)
         .map((element) => element.getBoundingClientRect());
       for (const label of labels) {
-        if (label.chainId !== visibleChainId) {
+        if (
+          label.chainId !== visibleChainId ||
+          (focusedDistrict && label.chainId !== focusedDistrict.id)
+        ) {
           label.element.style.visibility = "hidden";
           continue;
         }
@@ -291,11 +330,15 @@ export async function createCity(
     );
     if (Math.abs(pointer.x) > 1 || Math.abs(pointer.y) > 1) return null;
     raycaster.setFromCamera(pointer, camera);
-    return raycaster.ray.intersectPlane(groundPlane, groundPoint)
+    const district = raycaster.ray.intersectPlane(groundPlane, groundPoint)
       ? getDistrictAt(groundPoint.x, groundPoint.z)
+      : null;
+    return !focusedDistrict || district?.id === focusedDistrict.id
+      ? district
       : null;
   }
   const down = (event) => {
+    renderer.domElement.focus({ preventScroll: true });
     cameraTransition = null;
     hoverPoint = null;
     visibleChainId = null;
@@ -336,12 +379,14 @@ export async function createCity(
         event.clientY,
         renderer.domElement.getBoundingClientRect(),
         camera,
+        districtFocus.planes,
       );
       if (!picked) {
         const point = { x: event.clientX, y: event.clientY };
         const district = districtAtPointer(point);
         visibleChainId = null;
         if (district) options.onFocusDistrict?.(district.id);
+        else if (focusedDistrict) options.onFocusDistrict?.("all");
         else if (event.pointerType !== "touch") hoverPoint = point;
       }
     }
@@ -353,6 +398,7 @@ export async function createCity(
     visibleChainId = null;
   };
   const leave = (event) => {
+    if (event.relatedTarget?.closest?.(".chain-label")) return;
     // Touch emits pointerleave after a completed tap; keep its one revealed label.
     if (event.pointerType !== "touch") cancel();
   };
@@ -395,16 +441,14 @@ export async function createCity(
     },
     select: (id) => traffic.select(id),
     flyover: (transfer) => traffic.flyover(transfer),
-    zoom: (amount) => {
-      cameraTransition = null;
-      camera.zoom = THREE.MathUtils.clamp(camera.zoom * amount, 0.6, 2.4);
-      camera.updateProjectionMatrix();
-    },
+    zoom,
     reset,
     dispose() {
       disposed = true;
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
+      navigation.dispose();
+      districtFocus.dispose();
       controls.dispose();
       traffic.dispose();
       renderer.domElement.removeEventListener("pointerdown", down);

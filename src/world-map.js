@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CITY_CHAIN_IDS } from "./activity.js";
+import { CITY_CHAIN_IDS, ETHEREUM_INTEGRATORS } from "./activity.js";
 import { DISTRICT_LAYOUTS } from "./district-layout.js";
 
 export const GROUND = 0.6;
@@ -41,11 +41,16 @@ function layout() {
         site.maxDepth,
       );
       delete ports.district;
+      ports.siteId = site.id;
+      ports.hasGarage = site.garage !== false;
       return { ...site, address: ports };
     });
     district.police = district.sites.find(
       (site) => site.role === "police",
     ).address;
+    district.busTerminal = district.sites.find(
+      (site) => site.role === "bus-terminal",
+    )?.address;
   }
   Object.assign(CITY_BOUNDS, {
     left: -176,
@@ -158,7 +163,16 @@ export function getDistrict(id) {
     DISTRICTS.find((district) => district.id === Number(id)) ?? OTHER_DISTRICT
   );
 }
-const appSlots = new Map(DISTRICTS.map((district) => [district.id, new Map()]));
+const appSlots = new Map(
+  DISTRICTS.map((district) => [
+    district.id,
+    new Map(
+      district.id === 1
+        ? ETHEREUM_INTEGRATORS.map((app, slot) => [app.key, { ...app, slot }])
+        : [],
+    ),
+  ]),
+);
 export function registerApps(transfers) {
   for (const transfer of transfers) {
     if (transfer.app?.kind !== "integrator") continue;
@@ -172,7 +186,7 @@ export function registerApps(transfers) {
             .length
       )
         continue;
-      // Each authored app parcel accepts one observed integrator; overflow uses the commons.
+      // Ethereum's ranked skyline is fixed; Base accepts observed apps until its own design pass.
       slots.set(transfer.app.key, { ...transfer.app, slot: slots.size });
     }
   }
@@ -223,6 +237,42 @@ export function getAddress(
       : district.sites.find((site) => site.role === "commons");
   return { ...site.address, district, app };
 }
+// Stable across refreshes so updates and returns keep the same house and route.
+export function requestSeed(transfer) {
+  let hash = 2166136261;
+  for (const character of String(
+    transfer.id ?? `${transfer.originChainId}:${transfer.destinationChainId}`,
+  ))
+    hash = Math.imul(hash ^ character.charCodeAt(0), 16777619) >>> 0;
+  return hash;
+}
+
+export function getJourneyAddress(transfer, role = "origin") {
+  if (transfer.originChainId === transfer.destinationChainId) role = "origin";
+  const chainId =
+    role === "origin" ? transfer.originChainId : transfer.destinationChainId;
+  const district = getDistrict(chainId);
+  if (!district.visible) return getAddress(chainId, transfer.app, role);
+  if (transfer.kind === "bus") {
+    if (!district.busTerminal)
+      throw new Error("District bus terminal is missing");
+    return { ...district.busTerminal, district, app: transfer.app };
+  }
+  if (transfer.app?.kind !== "relay")
+    return getAddress(chainId, transfer.app, role);
+  const walking = transfer.kind === "pedestrian";
+  const homes = district.sites.filter(
+    (site) =>
+      site.role === "relay" &&
+      (walking ? site.garage === false : site.garage !== false),
+  );
+  if (!homes.length)
+    throw new Error("District is missing the requested home type");
+  const index =
+    (requestSeed(transfer) + (role === "destination" ? 1 : 0)) % homes.length;
+  return { ...homes[index].address, district, app: transfer.app };
+}
+
 export function getGate(chainId, pedestrian = false) {
   const d = getDistrict(chainId);
   return { ...d.gate, z: d.roadZ - (pedestrian ? 4.7 : 0) };

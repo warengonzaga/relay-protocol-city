@@ -211,7 +211,9 @@ function refreshOperations() {
       "flight-return": "Returning after a failed flight",
       "flight-hold": "Circling while destination confirmation is pending",
       "flight-final": "Confirmed arrival · leaving the sky route",
-      "arrival-wait": "At the destination, awaiting confirmation",
+      "destination-entry": "Pulling into the destination inspection bay",
+      "arrival-wait": "At the destination toll gate, awaiting confirmation",
+      "destination-rejoin": "Confirmed · leaving the destination toll gate",
     }[phase] ?? "Not currently on the map";
   const stage = ["board", "police"].includes(phase)
     ? "blocked"
@@ -219,7 +221,14 @@ function refreshOperations() {
       ? "failed"
       : ["gate", "inspection-entry", "rejoin", "rail-origin"].includes(phase)
         ? "gate"
-        : ["onward", "rail-travel", "rail-destination"].includes(phase)
+        : [
+              "onward",
+              "destination-entry",
+              "arrival-wait",
+              "destination-rejoin",
+              "rail-travel",
+              "rail-destination",
+            ].includes(phase)
           ? "fill"
           : "origin";
   const chip = $("trip-phase");
@@ -249,7 +258,9 @@ function refreshOperations() {
 function selectScenario() {
   const scenario = $("scenario").value;
   let transfers = createDemoTransfers();
-  if (["pending", "failed", "blocked"].includes(scenario))
+  if (scenario === "destination-pending")
+    transfers = createDemoTransfers(2, scenario);
+  else if (["pending", "failed", "blocked"].includes(scenario))
     transfers = transfers.filter((t) => t.demoScenario === scenario);
   else if (scenario === "same-chain")
     transfers = transfers.filter(
@@ -270,7 +281,10 @@ function selectScenario() {
   selectedId = null;
   $("trip-inspector").hidden = true;
   applySource(true);
-  if (
+  if (scenario === "destination-pending" && transfers[0])
+    focusDistrict(transfers[0].destinationChainId);
+  else if (scenario === "airplanes") focusDistrict("all");
+  else if (
     ["pending", "failed", "blocked", "same-chain", "opensea"].includes(
       scenario,
     ) &&
@@ -325,7 +339,7 @@ function renderActivity() {
     button.querySelector(".trip-age").textContent =
       journeyDirection +
       (current.mode === "demo"
-        ? `${transfer.app?.name ?? "Unknown app"} · ${transfer.demoScenario ?? "success"} demo`
+        ? `${transfer.app?.name ?? "Unknown app"} · ${(transfer.demoScenario ?? "success").replaceAll("-", " ")} demo`
         : `${transfer.app?.name ?? "Unknown app"} · ${stageName(transfer)}`);
     button.querySelector(".trip-value").textContent = amount(
       transfer.amountUsd,
@@ -389,7 +403,8 @@ function renderMode() {
   const hasFlight = current.transfers.some(
     (transfer) => transfer.kind === "airplane" && matches(transfer),
   );
-  $("whale-button").disabled = live || !hasFlight;
+  $("whale-button").hidden = filter !== "all";
+  $("whale-button").disabled = live || !hasFlight || filter !== "all";
   $("whale-button").title = live
     ? "Whale flyovers happen when a large transfer arrives."
     : !hasFlight

@@ -143,6 +143,7 @@ The confirmed world is a colorful, toy-like city made from real 3D building, cha
 Chains organize the landscape into individually authored districts; the buildings represent Relay homes, reported integrators, and shared app space. Ethereum is the first detailed neighborhood, with Base retained as a compact connection point. The initial view focuses Ethereum. District clicks and the selector change focus, while **City overview** returns to both neighborhoods. Compact inspection panels explain the journeys without presenting the animation as a literal map of funds.
 
 **Key Characteristics:**
+
 - Colorful modeled districts and travelers against a dark tabletop.
 - Relay dark surfaces, purple actions, Inter type, and the official wordmark.
 - Compact rounded controls with shallow ambient shadows.
@@ -155,16 +156,19 @@ This document records the implemented system and the user's approved dark brand 
 The interface follows Relay Kit's dark palette; chain colors remain spatial identifiers within the miniature. The frontmatter is the normative local token snapshot, extracted from `src/style.css`, `src/journey-ui.css`, `src/activity.js`, and `src/environment.js`.
 
 ### Primary
+
 - **Purple / Purple Hover:** the whale-flyover action and transaction link.
 - **Accent Text / Accent Bright / Accent Surface:** active navigation, selected activity, train details, and origin/fill stages.
 - **Focus:** the visible keyboard outline.
 
 ### Secondary
+
 - **Success, Warning, Danger:** completed, waiting/blocked, and failed stage treatments. Warning Surface also distinguishes preview and simulation explanations.
 - **Ethereum and Base:** district edges, station roofs, chain marks, and traveler identity in the displayed city. The broader chain palette remains in the token snapshot and chain registry; unsupported endpoints are excluded from this two-district view, with no visible neutral hub.
 - **Tabletop, Lawn, Road, Sidewalk:** the physical model's ground layers and movement surfaces. Imported assets retain their recognizable materials and silhouettes.
 
 ### Neutral
+
 - **Canvas:** header, footer, and scene background.
 - **Paper / Surface / Hover:** floating panels, nested controls and signage, and interaction feedback.
 - **Ink / Muted / White:** main labels, supporting copy, and text on purple actions.
@@ -190,9 +194,9 @@ Activity values, traffic status, and footer values use tabular numerals. In-worl
 
 The desktop frame has an (88px) header, a scene sized to `100dvh - 160px` with a (420px) minimum height, and a (72px) footer. The scene clips overflow and positions the interface above a real orthographic 3D world.
 
-The current city has two fixed, manually authored layouts. Ethereum has a larger, detailed street network, varied building heights and footprints, distinct blocks, homes, parks, and five dedicated app sites. Base has a compact street plan and one app site. These proportions are design choices; sample counts do not resize land, roads, or buildings. Each district has one shared entrance/exit gate, connected by a neutral highway and sidewalks. Right-hand lanes, crossings, and two elevated rail lanes organize movement. Homes and app buildings supply actual journey addresses.
+The current city has two fixed, manually authored layouts. Ethereum has a larger, detailed street network, varied building heights and footprints, dense residential rows, distinct blocks, trees and grass pockets, a softly rounded uneven perimeter, and five ranked app sites. Base has a compact street plan and one app site. These proportions are design choices; sample counts do not resize land, roads, or buildings. Each district has one shared entrance/exit gate, connected by a neutral highway and sidewalks. Right-hand lanes, crossings, and two elevated rail lanes organize movement. Homes and app buildings supply actual journey addresses.
 
-Ethereum is focused on startup. Clicking a district or selecting it frames the neighborhood; **City overview** restores the shared view. The camera accounts for the surrounding controls when fitting the selected district. District names can also appear on territory hover. Focused activity separates incoming, outgoing, and local requests; same-chain trips belong only to Local.
+Ethereum is focused on startup. Clicking a district, its hovered name, or the selector isolates the neighborhood with border clipping, including roads, rails, traffic, and shadows. Clicking outside the district or **City overview** restores the shared view. The camera accounts for the surrounding controls when fitting the selected district. District names can also appear on territory hover. Focused activity separates incoming, outgoing, and local requests; same-chain trips belong only to Local.
 
 The introduction and return-to-overview control sit upper left. Source, district selector, and flyover controls sit upper right, with the demo scenario selector beneath them. Activity occupies the left side in district focus and lower left in overview. Camera controls sit lower right, and the rail/queue/checkpoint readout occupies the lower center. Inspector and guide panels share the right side, with (310px) width and bounded scrolling. Projected district labels hide when they would overlap these overlays.
 
@@ -218,20 +222,21 @@ Preserve the official Relay wordmark instead of reconstructing it from text or g
 
 ## Components
 
-- **Native selects:** source and district selectors use native select semantics inside dark shells. A separate demo-only journey selector exposes city life, same-chain sprint, OpenSea Ethereum to Base, waiting, failed, blocked, train queue, and sky-route examples.
+- **Native selects:** source and district selectors use native select semantics inside dark shells. A separate demo-only journey selector exposes city life, same-chain sprint, OpenSea Ethereum to Base, origin waiting, destination confirmation, failed, blocked, train queue, and sky-route examples.
 - **Buttons and navigation:** primary actions use Purple with Purple Hover; secondary actions use tonal surfaces. Buttons press to scale (0.96), disabled controls use opacity (0.45), and keyboard focus uses a (3px) outline offset (4px). Active desktop navigation has an Accent Text bottom rule. The official wordmark links home.
-- **Camera toolbar:** pause/resume, zoom in/out, and reset to city overview. A separate **City overview** button appears in district focus. Pause exposes `aria-pressed` with an Accent Surface selected treatment. Drag orbits and scroll zooms; pan is disabled. District focus animates when reduced motion is not requested.
+- **Camera toolbar:** pause/resume, zoom in/out, and reset to city overview. A separate **City overview** button appears in district focus. Pause exposes `aria-pressed` with an Accent Surface selected treatment. Arrows/WASD pan, Q/E rotate, and +/− zoom. Drag orbits, right-drag/two-finger gestures pan, and scrolling zooms. Keyboard navigation yields to native controls and help, and clears on lost focus. District focus animates when reduced motion is not requested.
 - **Activity panel:** overview shows four recent rows on desktop, with three visible on mobile. District focus offers up to twelve rows in a bounded scrolling feed, with **All**, **In**, **Out**, and **Local** buttons and direction counts. Incoming and outgoing trips exclude same-chain trips. Both endpoints must be Ethereum or Base in live and demo data; unsupported routes are excluded without changing their real chain identities. Rows are semantic buttons with route, direction/app-stage text, value, accessible name, and selected state. Its heading toggles the body; the skip link expands the body before focusing the list.
 - **Inspector and guide:** mutually exclusive panels distinguish the API stage from the city's animated phase, show attribution and pace source, and provide route/value details. Real entries link to Relay; demo entries state that no funds moved. Close and Escape restore focus to the visible opener, with the activity heading as fallback.
-- **District addresses:** Ethereum has five assignable app sites with varied building forms; Base has one. Both have Relay homes, app commons, a police station, and a rail station. Reported integrators receive persistent site labels as observed; extra or unknown apps use their district's commons. No unsupported chain is assigned to these addresses. Referrer attribution is not verified app ownership.
-- **Ground journeys and checkpoints:** each district's single gate carries incoming and outgoing ground traffic on directional lanes. Pedestrians follow sidewalks and crossings; road vehicles use lanes and signals. A same-chain pedestrian uses the actual `sprint` clip on a local loop; other pedestrians select it when measured or estimated duration is at most (15 seconds), otherwise they use `walk`. Pending crosschain ground trips wait in off-lane border inspection bays; confirmed trips pass without a timed toll wait. Same-chain trips wait before returning home. Live origin-to-fill progression follows normalized API evidence; completed requests replay their journey. Failure/refund paths return; `BLOCKED` and `BLOCKED_WALLET` ground outcomes use a playful police boarding/escort or tow illustration to the district police station. This does not assert enforcement or a literal location of funds.
-- **Rail journeys:** two physically separate lanes carry opposite directions, with one train allowed per lane and additional eligible trips queued. A train enters through the rear yard/tunnel, stops at its origin and destination stations, then exits through the yard. Waiting or failed states alter that illustrated journey. The operations readout shows lane occupancy, queue count, and waiting checkpoints; releasing checkpoints is a demo-only action.
-- **Flight journeys:** chain compass bearings define sky routes independently of district coordinates. Airplanes and trains carry origin/destination identity marks and route labels. The demo-only whale flyover creates and selects an illustrative large transfer.
+- **District addresses:** Ethereum has five fixed named app sites in descending height order: Fun, LI.FI, Fomo, MetaMask, OKX. The dated available-history ranking and verified namespaces are documented in INTEGRATORS.md. Base has one observed app site. Both have separate no-garage pedestrian homes and garage-equipped car homes for Relay, app commons, a bus terminal, a police station, and a rail station. Buses use terminal addresses. Other ground integrator trips use their named building when matched, otherwise the commons. Missing referrers remain unknown. Same-chain journeys select a stable local loop variation and return to the same starting address. No unsupported chain is assigned to these addresses. Referrer attribution is not verified app ownership.
+- **Ground journeys and checkpoints:** each district's single gate carries incoming and outgoing ground traffic on directional lanes. Pedestrians follow sidewalks and crossings; road vehicles use lanes and signals. A same-chain pedestrian uses the actual `sprint` clip on a local loop; other pedestrians select it when measured or estimated duration is at most (15 seconds), otherwise they use `walk`. Pending crosschain ground trips wait in off-lane border inspection bays; confirmed trips pass without a timed toll wait. Destination-stage ground trips await confirmation in the destination gate bay, rejoin on completion, and use a destination escort or tow if they subsequently fail. Unresolved same-chain arrivals also wait in the destination gate bay. Pedestrians pass through one another to avoid sidewalk deadlocks; vehicles retain signals and following gaps. Live origin-to-fill progression follows normalized API evidence; completed requests replay their journey. Failure/refund paths return; `BLOCKED` and `BLOCKED_WALLET` ground outcomes use a playful police boarding/escort or tow illustration to the district police station. This does not assert enforcement or a literal location of funds.
+- **Rail journeys:** two physically separate lanes carry opposite directions, with one train allowed per lane and additional eligible trips queued. A train enters through the rear yard/tunnel, stops at its origin and destination stations, then exits through the yard. Only confirmed-success train-sized requests animate; pending/failed/refunded requests do not spawn trains. The operations readout shows lane occupancy, queue count, and waiting checkpoints; releasing checkpoints is a demo-only action.
+- **Flight journeys:** chain compass bearings define sky routes independently of district coordinates. Airplanes and trains carry origin/destination identity marks and route labels. Airplanes and the flyover control appear only in overview. The demo-only whale flyover creates and selects an illustrative large transfer.
 - **Motion and recovery:** interface transitions last (160ms); the loading cube alternates over (1.3s). Reduced-motion preferences remove CSS animation/transitions and start traffic paused. The pause control remains available; a deliberate flyover resumes demo traffic. Camera damping belongs to direct manipulation. Empty, loading, and error states remain explicit; if the canvas or models fail, the activity list remains the text entry point.
 
 ## Do's and Don'ts
 
 ### Do:
+
 - **Do** preserve the user's colorful miniature world, actual model silhouettes, and approved Relay dark branding.
 - **Do** design districts individually, beginning with Ethereum, and make street structure, building scale, and density visible within the focused neighborhood.
 - **Do** keep source scope, chain identity, attribution, and API stage readable outside the canvas.
@@ -239,6 +244,7 @@ Preserve the official Relay wordmark instead of reconstructing it from text or g
 - **Do** reuse the existing panel, radius, and shadow vocabulary.
 
 ### Don't:
+
 - **Don't** replace the modeled city with an image or decorative interface cards.
 - **Don't** promote sample counts or sample value to global daily statistics.
 - **Don't** describe route animation, gate waits, police escorts, or travel speed as literal settlement evidence.

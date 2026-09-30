@@ -12,7 +12,7 @@ import {
 import {
   GROUND,
   SIGNAL_JUNCTIONS,
-  getAddress,
+  getJourneyAddress,
   getDistrict,
   getSignalState,
 } from "./world-map.js";
@@ -32,7 +32,8 @@ export function createTraffic(scene, models, environment, onSelect) {
   const group = new THREE.Group();
   scene.add(group);
   const active = [],
-    seen = new Set();
+    seen = new Set(),
+    waitingTrains = new Map();
   let queue = [],
     demo = [],
     mode = "demo",
@@ -48,9 +49,43 @@ export function createTraffic(scene, models, environment, onSelect) {
     pointer = new THREE.Vector2();
   const matches = (t) =>
     filter === "all" ||
-    t.originChainId === Number(filter) ||
-    t.destinationChainId === Number(filter);
+    (t.kind !== "airplane" &&
+      (t.originChainId === Number(filter) ||
+        t.destinationChainId === Number(filter)));
   const railBusy = (lane) => active.some((item) => item.rail?.lane === lane);
+  const showTransfer = (transfer) =>
+    transfer.kind !== "train" || transfer.stage === "complete";
+  const destinationPending = (item) =>
+    mode === "live"
+      ? !terminal(item.transfer)
+      : !item.released &&
+        (item.transfer.demoScenario === "destination-pending" ||
+          (item.transfer.originChainId === item.transfer.destinationChainId &&
+            decision(item) === "wait"));
+
+  function inspectionDistrict(item) {
+    if (item.transfer.kind === "train" || item.transfer.kind === "airplane")
+      return null;
+    if (item.destinationCheck) return item.transfer.destinationChainId;
+    if (needsInspection(item)) return item.transfer.originChainId;
+    if (destinationPending(item)) return item.transfer.destinationChainId;
+    if (["inspection-entry", "gate", "board", "rejoin"].includes(item.phase))
+      return item.transfer.originChainId;
+    return null;
+  }
+  function destinationAvailable(item) {
+    const candidates = active.filter(
+      (other) => inspectionDistrict(other) === item.transfer.destinationChainId,
+    );
+    const holder =
+      candidates.find(
+        (other) =>
+          other.destinationCheck ||
+          (["inspection-entry", "gate", "board"].includes(other.phase) &&
+            needsInspection(other)),
+      ) ?? candidates[0];
+    return !holder || holder === item;
+  }
 
   function remove(item) {
     group.remove(item.root);
@@ -65,13 +100,15 @@ export function createTraffic(scene, models, environment, onSelect) {
     active.slice().forEach(remove);
     queue = [];
     seen.clear();
+    waitingTrains.clear();
     nextSpawn = 0;
     demoIndex = 0;
   }
   function hasCapacity(transfer) {
     if (
       active.length >= 40 ||
-      active.some((item) => item.transfer.id === transfer.id)
+      active.some((item) => item.transfer.id === transfer.id) ||
+      !showTransfer(transfer)
     )
       return false;
     if (transfer.kind === "train") return !railBusy(trainPlan(transfer).lane);
@@ -84,20 +121,12 @@ export function createTraffic(scene, models, environment, onSelect) {
         active.filter((item) => item.transfer.kind === "airplane").length < 2
       );
     const walking = transfer.kind === "pedestrian";
-    const address = getAddress(transfer.originChainId, transfer.app);
-    // ponytail: one inspection bay per district; extra checks stay in the tracked queue.
+    const address = getJourneyAddress(transfer);
+    // ponytail: one shared border bay per district; extra checks stay tracked off-scene.
+    const inspection = inspectionDistrict({ transfer });
     if (
-      needsInspection({ transfer }) &&
-      active.some(
-        (item) =>
-          getDistrict(item.transfer.originChainId).id === address.district.id &&
-          !item.rail &&
-          item.transfer.kind !== "airplane" &&
-          (needsInspection(item) ||
-            ["inspection-entry", "gate", "board", "rejoin"].includes(
-              item.phase,
-            )),
-      )
+      inspection !== null &&
+      active.some((item) => inspectionDistrict(item) === inspection)
     )
       return false;
     const entrance = walking ? address.door : address.garage;
@@ -221,20 +250,6 @@ export function createTraffic(scene, models, environment, onSelect) {
       );
     });
   }
-  function stopForWalker(item) {
-    if (
-      item.transfer.kind !== "pedestrian" ||
-      !["depart", "inspection-entry", "rejoin", "onward"].includes(item.phase)
-    )
-      return false;
-    const tangent = item.curve.getTangentAt(Math.min(item.progress, 0.9999));
-    return active.some((other) => {
-      if (other === item || other.transfer.kind !== "pedestrian") return false;
-      const delta = other.root.position.clone().sub(item.root.position);
-      const ahead = delta.dot(tangent);
-      return ahead > 0.1 && ahead < 1.7 && delta.length() < 2;
-    });
-  }
   function position(item) {
     let point, tangent;
     if (item.rail) {
@@ -287,9 +302,10 @@ export function createTraffic(scene, models, environment, onSelect) {
       );
     }
   }
-  function boardPolice(item) {
+  function boardPolice(item, curve = item.route.police) {
     item.phase = "board";
     item.wait = 0;
+    item.policeCurve = curve;
     item.police = createPolice(models, item.transfer, item.root);
     item.police.root.position
       .copy(item.root.position)
@@ -299,11 +315,14 @@ export function createTraffic(scene, models, environment, onSelect) {
   }
   function updateGround(item, dt) {
     if (item.phase === "arrival-wait") {
-      if (mode === "demo") {
-        if (decision(item) !== "go") return;
-        item.phase = "onward";
-      } else if (item.transfer.stage === "complete") item.phase = "onward";
-      else if (!["failed", "refunded"].includes(item.transfer.stage)) return;
+      if (
+        item.transfer.stage === "complete" ||
+        (mode === "demo" && item.released)
+      )
+        useCurve(item, item.route.destinationResume, "destination-rejoin");
+      else if (["failed", "refunded"].includes(item.transfer.stage))
+        boardPolice(item, item.route.destinationPolice);
+      return;
     }
     if (item.phase === "board") {
       item.wait += dt;
@@ -319,14 +338,18 @@ export function createTraffic(scene, models, environment, onSelect) {
         item.mixer = null;
         item.police = null;
         item.speed = 11;
-        useCurve(item, item.route.police, "police");
+        useCurve(item, item.policeCurve, "police");
       }
       return;
     }
     if (item.phase === "gate") {
       item.wait += dt;
       const outcome = decision(item);
-      if (outcome === "go") useCurve(item, item.route.resume, "rejoin");
+      if (
+        outcome === "go" &&
+        (!destinationPending(item) || destinationAvailable(item))
+      )
+        useCurve(item, item.route.resume, "rejoin");
       else if (outcome === "return")
         useCurve(item, item.route.returnFromHold, "return");
       else if (outcome === "blocked") boardPolice(item);
@@ -334,7 +357,7 @@ export function createTraffic(scene, models, environment, onSelect) {
     }
     if (
       mode === "live" &&
-      ["rejoin", "onward", "arrival-wait"].includes(item.phase) &&
+      ["rejoin", "onward"].includes(item.phase) &&
       ["failed", "refunded"].includes(item.transfer.stage)
     ) {
       if (item.transfer.kind === "pedestrian")
@@ -355,7 +378,7 @@ export function createTraffic(scene, models, environment, onSelect) {
           item.transfer.blocked ? "back-to-gate" : "return",
         );
     }
-    const stopped = stopForTraffic(item) || stopForWalker(item);
+    const stopped = stopForTraffic(item);
     if (!stopped) {
       item.progress = Math.min(
         1,
@@ -366,18 +389,19 @@ export function createTraffic(scene, models, environment, onSelect) {
     item.stopped = stopped;
     if (
       item.phase === "onward" &&
-      (mode === "live"
-        ? !terminal(item.transfer)
-        : item.route.sameChain && decision(item) === "wait") &&
-      item.progress >= Math.max(0.05, 1 - 3 / item.length)
+      destinationPending(item) &&
+      item.progress >= item.route.destinationProgress
     ) {
-      item.progress = Math.max(0.05, 1 - 3 / item.length);
-      item.phase = "arrival-wait";
-      item.stopped = false;
+      item.destinationCheck = true;
+      useCurve(item, item.route.destinationHold, "destination-entry");
     }
     position(item);
     if (item.progress >= 1) {
-      if (item.phase === "depart" && !needsInspection(item)) {
+      if (
+        item.phase === "depart" &&
+        !needsInspection(item) &&
+        (!destinationPending(item) || destinationAvailable(item))
+      ) {
         useCurve(item, item.route.onward, "onward");
       } else if (["depart", "back-to-gate"].includes(item.phase)) {
         useCurve(item, item.route.hold, "inspection-entry");
@@ -387,39 +411,23 @@ export function createTraffic(scene, models, environment, onSelect) {
         item.stopped = false;
       } else if (item.phase === "rejoin") {
         useCurve(item, item.route.onward, "onward");
+      } else if (item.phase === "destination-entry") {
+        item.phase = "arrival-wait";
+        item.stopped = false;
+      } else if (item.phase === "destination-rejoin") {
+        item.destinationCheck = false;
+        useCurve(item, item.route.onward, "onward");
+        item.progress = item.route.destinationProgress;
       } else remove(item);
     }
   }
   function updateTrain(item, dt) {
-    if (
-      mode === "live" &&
-      ["rail-travel", "rail-destination"].includes(item.phase) &&
-      ["failed", "refunded"].includes(item.transfer.stage)
-    ) {
-      item.phase = "rail-return";
-      item.target =
-        item.progress +
-        ((((item.rail.origin - item.progress) % 1) + 1) % 1 || 1);
-    }
-    if (
-      ["rail-origin", "rail-destination", "rail-returned"].includes(item.phase)
-    ) {
+    if (["rail-origin", "rail-destination"].includes(item.phase)) {
       item.wait += dt;
-      if (
-        mode === "live" &&
-        item.phase === "rail-destination" &&
-        !terminal(item.transfer)
-      )
-        return;
       if (item.wait < 1.8) return;
       if (item.phase === "rail-origin") {
-        const result = decision(item);
-        if (result === "wait") return;
-        item.phase = result === "go" ? "rail-travel" : "rail-exit";
-        item.target =
-          result === "go"
-            ? item.rail.destination
-            : Math.ceil(item.progress + 0.001);
+        item.phase = "rail-travel";
+        item.target = item.rail.destination;
       } else {
         item.phase = "rail-exit";
         item.target = Math.ceil(item.progress + 0.001);
@@ -436,9 +444,6 @@ export function createTraffic(scene, models, environment, onSelect) {
         item.wait = 0;
       } else if (item.phase === "rail-travel") {
         item.phase = "rail-destination";
-        item.wait = 0;
-      } else if (item.phase === "rail-return") {
-        item.phase = "rail-returned";
         item.wait = 0;
       } else if (item.phase === "rail-exit") remove(item);
     }
@@ -510,16 +515,34 @@ export function createTraffic(scene, models, environment, onSelect) {
       if (mode === "demo") demo = transfers;
       else {
         const updates = new Map(transfers.map((t) => [t.id, t]));
-        for (const item of active)
+        for (const transfer of transfers) {
+          if (transfer.kind === "train" && !terminal(transfer))
+            waitingTrains.set(transfer.id, transfer);
+          else waitingTrains.delete(transfer.id);
+        }
+        // Keep pending trains in status polling, outside the successful train queue.
+        while (waitingTrains.size > 150)
+          waitingTrains.delete(waitingTrains.keys().next().value);
+        for (const item of [...active])
           if (updates.has(item.transfer.id)) {
             const previousTransfer = item.transfer;
             item.transfer = updates.get(item.transfer.id);
             refreshTravelerPace(item, previousTransfer);
             item.root.userData.transfer = item.transfer;
+            if (!showTransfer(item.transfer)) {
+              remove(item);
+              seen.delete(item.transfer.id);
+            }
           }
-        queue = queue.map((t) => updates.get(t.id) ?? t);
+        queue = queue
+          .map((t) => updates.get(t.id) ?? t)
+          .filter((transfer) => {
+            if (showTransfer(transfer)) return true;
+            seen.delete(transfer.id);
+            return false;
+          });
         for (const transfer of transfers.toReversed())
-          if (!seen.has(transfer.id)) {
+          if (showTransfer(transfer) && !seen.has(transfer.id)) {
             seen.add(transfer.id);
             queue.push(transfer);
           }
@@ -536,10 +559,17 @@ export function createTraffic(scene, models, environment, onSelect) {
         active
           .filter(
             (item) =>
-              ["gate", "rail-origin"].includes(item.phase) &&
-              decision(item) === "wait",
+              (item.phase === "gate" && decision(item) === "wait") ||
+              item.phase === "arrival-wait",
           )
-          .map((item) => getDistrict(item.transfer.originChainId).id),
+          .map(
+            (item) =>
+              getDistrict(
+                item.destinationCheck
+                  ? item.transfer.destinationChainId
+                  : item.transfer.originChainId,
+              ).id,
+          ),
       );
       for (const item of [...active]) {
         item.age += dt;
@@ -551,7 +581,9 @@ export function createTraffic(scene, models, environment, onSelect) {
       if (elapsed >= nextSpawn) {
         nextSpawn = elapsed + 0.65;
         if (mode === "demo") {
-          const candidates = demo.filter(matches);
+          const candidates = demo.filter(
+            (transfer) => matches(transfer) && showTransfer(transfer),
+          );
           for (let i = 0; i < candidates.length; i++)
             if (spawn(candidates[demoIndex++ % candidates.length])) break;
         } else {
@@ -587,6 +619,14 @@ export function createTraffic(scene, models, environment, onSelect) {
       if (mode === "demo")
         active.forEach((item) => {
           item.released = true;
+          if (item.transfer.demoScenario === "destination-pending") {
+            item.transfer = {
+              ...item.transfer,
+              stage: "complete",
+              status: "success",
+            };
+            item.root.userData.transfer = item.transfer;
+          }
         });
     },
     flyover(transfer) {
@@ -612,7 +652,11 @@ export function createTraffic(scene, models, environment, onSelect) {
       if (mode !== "live") return [];
       const ids = [
         ...new Set(
-          [...active.map((item) => item.transfer), ...queue]
+          [
+            ...active.map((item) => item.transfer),
+            ...queue,
+            ...waitingTrains.values(),
+          ]
             .filter((t) => !terminal(t) && /^0x[a-f0-9]{64}$/i.test(t.id))
             .map((t) => t.id),
         ),
@@ -632,21 +676,30 @@ export function createTraffic(scene, models, environment, onSelect) {
         queued:
           mode === "live"
             ? queue.length
-            : demo.filter((t) => !active.some((i) => i.transfer.id === t.id))
-                .length,
+            : demo.filter(
+                (t) =>
+                  showTransfer(t) &&
+                  !active.some((i) => i.transfer.id === t.id),
+              ).length,
         gates: active.filter(
-          (i) => i.phase === "gate" && decision(i) === "wait",
+          (i) =>
+            (i.phase === "gate" && decision(i) === "wait") ||
+            (i.phase === "arrival-wait" && i.destinationCheck),
         ).length,
         rails: [railBusy(0), railBusy(1)],
       };
     },
-    pick(x, y, rect, camera) {
+    pick(x, y, rect, camera, clippingPlanes = []) {
       pointer.set(
         ((x - rect.left) / rect.width) * 2 - 1,
         -((y - rect.top) / rect.height) * 2 + 1,
       );
       raycaster.setFromCamera(pointer, camera);
       for (const hit of raycaster.intersectObject(group, true)) {
+        if (
+          clippingPlanes.some((plane) => plane.distanceToPoint(hit.point) < 0)
+        )
+          continue;
         let node = hit.object;
         while (node && !node.userData.transfer) node = node.parent;
         if (node && matches(node.userData.transfer)) {

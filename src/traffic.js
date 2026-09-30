@@ -8,12 +8,19 @@ import {
   reversePath,
   movementSpeed,
 } from "./routes.js";
-import { ROAD_X, ROAD_Z, getSignalState } from "./world-map.js";
+import {
+  GROUND,
+  SIGNAL_JUNCTIONS,
+  getAddress,
+  getDistrict,
+  getSignalState,
+} from "./world-map.js";
 import {
   createTraveler,
   createPolice,
   disposeTraveler,
   refreshTravelerPace,
+  updatePoliceLights,
 } from "./travelers.js";
 
 const terminal = (transfer) =>
@@ -29,7 +36,8 @@ export function createTraffic(scene, models, environment, onSelect) {
     demo = [],
     mode = "demo",
     filter = "all",
-    paused = false;
+    paused = false,
+    reducedMotion = false;
   let elapsed = 0,
     nextSpawn = 0,
     demoIndex = 0,
@@ -74,7 +82,29 @@ export function createTraffic(scene, models, environment, onSelect) {
           )) &&
         active.filter((item) => item.transfer.kind === "airplane").length < 2
       );
-    const start = groundRoute(transfer).depart.getPointAt(0);
+    const walking = transfer.kind === "pedestrian";
+    const address = getAddress(transfer.originChainId, transfer.app);
+    // ponytail: one inspection bay per district; extra checks stay in the tracked queue.
+    if (
+      needsInspection({ transfer }) &&
+      active.some(
+        (item) =>
+          getDistrict(item.transfer.originChainId).id === address.district.id &&
+          !item.rail &&
+          item.transfer.kind !== "airplane" &&
+          (needsInspection(item) ||
+            ["inspection-entry", "gate", "board", "rejoin"].includes(
+              item.phase,
+            )),
+      )
+    )
+      return false;
+    const entrance = walking ? address.door : address.garage;
+    const start = new THREE.Vector3(
+      entrance.x,
+      GROUND + (walking ? 0.4 : 0.23),
+      entrance.z,
+    );
     return !active.some((item) => item.root.position.distanceTo(start) < 4);
   }
   function useCurve(item, curve, phase) {
@@ -125,7 +155,6 @@ export function createTraffic(scene, models, environment, onSelect) {
   }
   function decision(item) {
     if (mode === "demo") {
-      if (item.wait < 2.5) return "wait";
       const scenario = item.transfer.demoScenario;
       if (scenario === "blocked") return "blocked";
       if (scenario === "failed") return "return";
@@ -136,6 +165,14 @@ export function createTraffic(scene, models, environment, onSelect) {
     if (stage === "failed" || stage === "refunded")
       return blocked ? "blocked" : "return";
     return ["fill", "complete"].includes(stage) ? "go" : "wait";
+  }
+  function needsInspection(item) {
+    const outcome = decision(item);
+    return (
+      outcome !== "go" &&
+      (item.transfer.originChainId !== item.transfer.destinationChainId ||
+        outcome !== "wait")
+    );
   }
   function stopForTraffic(item) {
     if (!isRoadVehicle(item.transfer.kind) && item.phase !== "police")
@@ -150,14 +187,16 @@ export function createTraffic(scene, models, environment, onSelect) {
           ? "z"
           : null;
     if (axis && getSignalState(elapsed, axis) !== "green") {
-      const along = axis === "x" ? ROAD_X : ROAD_Z;
-      const across = axis === "x" ? ROAD_Z : ROAD_X;
       const other = axis === "x" ? "z" : "x";
       if (
-        across.some((value) => Math.abs(point[other] - value) < 3.1) &&
-        along.some((value) => {
-          const ahead = (value - point[axis]) * Math.sign(tangent[axis]);
-          return ahead >= 4.1 && ahead <= 7;
+        SIGNAL_JUNCTIONS.some((junction) => {
+          const ahead =
+            (junction[axis] - point[axis]) * Math.sign(tangent[axis]);
+          return (
+            Math.abs(point[other] - junction[other]) < 3.1 &&
+            ahead >= 4.1 &&
+            ahead <= 7
+          );
         })
       )
         return true;
@@ -184,7 +223,7 @@ export function createTraffic(scene, models, environment, onSelect) {
   function stopForWalker(item) {
     if (
       item.transfer.kind !== "pedestrian" ||
-      !["depart", "onward"].includes(item.phase)
+      !["depart", "inspection-entry", "rejoin", "onward"].includes(item.phase)
     )
       return false;
     const tangent = item.curve.getTangentAt(Math.min(item.progress, 0.9999));
@@ -246,12 +285,6 @@ export function createTraffic(scene, models, environment, onSelect) {
         ),
       );
     }
-    if (item.lights)
-      item.lights.forEach(
-        (light, index) =>
-          (light.material.emissiveIntensity =
-            Math.floor(elapsed * 4) % 2 === index ? 1.8 : 0.15),
-      );
   }
   function boardPolice(item) {
     item.phase = "board";
@@ -265,7 +298,10 @@ export function createTraffic(scene, models, environment, onSelect) {
   }
   function updateGround(item, dt) {
     if (item.phase === "arrival-wait") {
-      if (item.transfer.stage === "complete") item.phase = "onward";
+      if (mode === "demo") {
+        if (decision(item) !== "go") return;
+        item.phase = "onward";
+      } else if (item.transfer.stage === "complete") item.phase = "onward";
       else if (!["failed", "refunded"].includes(item.transfer.stage)) return;
     }
     if (item.phase === "board") {
@@ -278,6 +314,7 @@ export function createTraffic(scene, models, environment, onSelect) {
         item.root = police.root;
         item.label = police.label;
         item.lights = police.lights;
+        item.glows = police.glows;
         item.mixer = null;
         item.police = null;
         item.speed = 11;
@@ -288,29 +325,23 @@ export function createTraffic(scene, models, environment, onSelect) {
     if (item.phase === "gate") {
       item.wait += dt;
       const outcome = decision(item);
-      if (outcome === "go") useCurve(item, item.route.onward, "onward");
+      if (outcome === "go") useCurve(item, item.route.resume, "rejoin");
       else if (outcome === "return")
-        useCurve(
-          item,
-          item.transfer.kind === "pedestrian"
-            ? reversePath(item.route.depart)
-            : roadReturnRoute(
-                item.transfer,
-                item.root.position,
-                item.curve.getTangentAt(1),
-              ),
-          "return",
-        );
+        useCurve(item, item.route.returnFromHold, "return");
       else if (outcome === "blocked") boardPolice(item);
       return;
     }
     if (
       mode === "live" &&
-      ["onward", "arrival-wait"].includes(item.phase) &&
+      ["rejoin", "onward", "arrival-wait"].includes(item.phase) &&
       ["failed", "refunded"].includes(item.transfer.stage)
     ) {
       if (item.transfer.kind === "pedestrian")
-        useCurve(item, reversePath(item.curve, item.progress), "back-to-gate");
+        useCurve(
+          item,
+          reversePath(item.curve, item.progress),
+          item.phase === "rejoin" ? "back-to-bay" : "back-to-gate",
+        );
       else
         useCurve(
           item,
@@ -333,9 +364,10 @@ export function createTraffic(scene, models, environment, onSelect) {
     }
     item.stopped = stopped;
     if (
-      mode === "live" &&
       item.phase === "onward" &&
-      !terminal(item.transfer) &&
+      (mode === "live"
+        ? !terminal(item.transfer)
+        : item.route.sameChain && decision(item) === "wait") &&
       item.progress >= Math.max(0.05, 1 - 3 / item.length)
     ) {
       item.progress = Math.max(0.05, 1 - 3 / item.length);
@@ -344,10 +376,16 @@ export function createTraffic(scene, models, environment, onSelect) {
     }
     position(item);
     if (item.progress >= 1) {
-      if (["depart", "back-to-gate"].includes(item.phase)) {
+      if (item.phase === "depart" && !needsInspection(item)) {
+        useCurve(item, item.route.onward, "onward");
+      } else if (["depart", "back-to-gate"].includes(item.phase)) {
+        useCurve(item, item.route.hold, "inspection-entry");
+      } else if (["inspection-entry", "back-to-bay"].includes(item.phase)) {
         item.phase = "gate";
         item.wait = 0;
         item.stopped = false;
+      } else if (item.phase === "rejoin") {
+        useCurve(item, item.route.onward, "onward");
       } else remove(item);
     }
   }
@@ -412,7 +450,7 @@ export function createTraffic(scene, models, environment, onSelect) {
         item,
         new THREE.QuadraticBezierCurve3(
           item.root.position.clone(),
-          new THREE.Vector3(0, 45, 0),
+          flightRoute(item.transfer).getPointAt(0.5).setY(45),
           flightRoute(item.transfer).getPointAt(0),
         ),
         "flight-return",
@@ -499,13 +537,14 @@ export function createTraffic(scene, models, environment, onSelect) {
               ["gate", "rail-origin"].includes(item.phase) &&
               decision(item) === "wait",
           )
-          .map((item) => item.transfer.originChainId),
+          .map((item) => getDistrict(item.transfer.originChainId).id),
       );
       for (const item of [...active]) {
         item.age += dt;
         if (item.rail) updateTrain(item, dt);
         else if (item.transfer.kind === "airplane") updateFlight(item, dt);
         else updateGround(item, dt);
+        updatePoliceLights(item.police ?? item, elapsed, reducedMotion);
       }
       if (elapsed >= nextSpawn) {
         nextSpawn = elapsed + 0.65;
@@ -535,6 +574,12 @@ export function createTraffic(scene, models, environment, onSelect) {
     },
     setPaused(value) {
       paused = value;
+    },
+    setReducedMotion(value) {
+      reducedMotion = value;
+      active.forEach((item) =>
+        updatePoliceLights(item.police ?? item, elapsed, reducedMotion),
+      );
     },
     releasePending() {
       if (mode === "demo")

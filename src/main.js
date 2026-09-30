@@ -184,7 +184,10 @@ function refreshOperations() {
   const text =
     {
       depart: "Leaving the origin address",
-      gate: "Waiting at the toll gate",
+      gate: "Waiting in the border inspection bay",
+      "inspection-entry": "Pulling into the border inspection bay",
+      rejoin: "Cleared · rejoining the through lane",
+      "back-to-bay": "Returning to the inspection bay",
       onward: "Travelling to the destination",
       return: "Returning home",
       "back-to-gate": "Returning to the origin checkpoint",
@@ -198,16 +201,16 @@ function refreshOperations() {
       "rail-exit": "Returning to the rail-yard tunnel",
       "rail-return": "Returning to the origin station",
       "rail-returned": "Back at the origin station",
-      "flight-return": "Returning toward the origin bearing",
+      "flight-return": "Returning after a failed flight",
       "flight-hold": "Circling while destination confirmation is pending",
       "flight-final": "Confirmed arrival · leaving the sky route",
       "arrival-wait": "At the destination, awaiting confirmation",
     }[phase] ?? "Not currently on the map";
   const stage = ["board", "police"].includes(phase)
     ? "blocked"
-    : ["return", "back-to-gate"].includes(phase)
+    : ["return", "back-to-gate", "back-to-bay"].includes(phase)
       ? "failed"
-      : ["gate", "rail-origin"].includes(phase)
+      : ["gate", "inspection-entry", "rejoin", "rail-origin"].includes(phase)
         ? "gate"
         : ["onward", "rail-travel", "rail-destination"].includes(phase)
           ? "fill"
@@ -464,8 +467,7 @@ $("tier-guide").innerHTML = tiers
   .join("");
 const credits = document.createElement("p");
 credits.className = "fine-print";
-credits.innerHTML =
-  `3D models by <a href="https://kenney.nl" target="_blank" rel="noopener noreferrer">Kenney</a>. Airplane and bus by Poly by Google, <a href="${assetUrl("models/poly-google/ATTRIBUTION.txt")}" target="_blank" rel="noopener noreferrer">CC BY 3.0 · credits</a>.`;
+credits.innerHTML = `3D models by <a href="https://kenney.nl" target="_blank" rel="noopener noreferrer">Kenney</a>. Airplane and bus by Poly by Google, <a href="${assetUrl("models/poly-google/ATTRIBUTION.txt")}" target="_blank" rel="noopener noreferrer">CC BY 3.0 · credits</a>.`;
 $("info-panel").append(credits);
 $("how-button").addEventListener("click", showInfo);
 $("legend-button").addEventListener("click", showInfo);
@@ -525,9 +527,10 @@ document.addEventListener("keydown", (event) => {
     else if (!$("trip-inspector").hidden) closeTrip();
   }
 });
-motionPreference.addEventListener("change", (event) =>
-  setPaused(event.matches),
-);
+motionPreference.addEventListener("change", (event) => {
+  city?.setReducedMotion(event.matches);
+  setPaused(event.matches);
+});
 if (mobile.matches) {
   $("activity-toggle").setAttribute("aria-expanded", "false");
   $("activity-body").hidden = true;
@@ -537,8 +540,9 @@ $("flight-bearings").textContent = CHAIN_CONFIG.map(
   (chain) => `${chain.name} ${chain.flightBearing}°`,
 ).join(" · ");
 uiTimer = setInterval(refreshOperations, 400);
-loadActivity();
+await loadActivity();
 try {
+  const layoutSource = current;
   city = await createCity(
     $("world"),
     $("chain-labels"),
@@ -547,7 +551,15 @@ try {
       $("scene-error").hidden = false;
       $("scene-error").querySelector("p").textContent = error.message;
     },
+    {
+      transfers: layoutSource.transfers,
+      reducedMotion: motionPreference.matches,
+    },
   );
+  $("district-sizing").textContent =
+    layoutSource.mode === "demo"
+      ? "District sizes use the illustrative trips loaded with this city. Hover a district, tap it, or choose a chain to see its name. Sizes stay fixed until reload."
+      : "District sizes use unique requests touching each chain in the sample loaded with this city. Sizes are bounded for readability and stay fixed until reload; they are not network-wide market shares. Hover, tap, or choose a chain to see its name.";
   city.setPaused(paused);
   city.setData(current.transfers, current.mode);
   $("loading-scene").hidden = true;

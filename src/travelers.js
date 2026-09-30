@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { getChain } from "./activity.js";
 import { drawChainMark } from "./chain-marks.js";
-import { movementSpeed } from "./routes.js";
+import { flightBearing, movementSpeed } from "./routes.js";
 
 function badge(chain, size = 1.5) {
   const canvas = document.createElement("canvas");
@@ -21,11 +21,11 @@ function badge(chain, size = 1.5) {
 function routeLabel(transfer) {
   const canvas = document.createElement("canvas");
   canvas.width = 768;
-  canvas.height = 112;
+  canvas.height = transfer.kind === "airplane" ? 144 : 112;
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#232323";
   ctx.beginPath();
-  ctx.roundRect(2, 2, 764, 108, 20);
+  ctx.roundRect(2, 2, 764, canvas.height - 4, 20);
   ctx.fill();
   const origin = getChain(transfer.originChainId),
     destination = getChain(transfer.destinationChainId);
@@ -51,6 +51,20 @@ function routeLabel(transfer) {
           maximumFractionDigits: 2,
         }).format(transfer.amountUsd);
   ctx.fillText(amount, 730, 57);
+  if (transfer.kind === "airplane") {
+    const degrees = flightBearing(transfer.destinationChainId);
+    const direction = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][
+      Math.round(degrees / 45) % 8
+    ];
+    ctx.font = "bold 20px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#b9c5e0";
+    ctx.fillText(
+      `DESTINATION ${direction} · ${Math.round(degrees)}°`,
+      384,
+      111,
+    );
+  }
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   const sprite = new THREE.Sprite(
@@ -60,7 +74,7 @@ function routeLabel(transfer) {
       transparent: true,
     }),
   );
-  sprite.scale.set(16, 2.33, 1);
+  sprite.scale.set(16, canvas.height / 48, 1);
   sprite.renderOrder = 10;
   sprite.userData.transient = true;
   return sprite;
@@ -133,10 +147,36 @@ function part(root, color, size, position) {
 export function createPolice(models, transfer, traveler) {
   const pedestrian = transfer.kind === "pedestrian";
   const root = models.create(pedestrian ? "sedan" : "truck", 4.4, "z");
-  const lights = [
-    part(root, "#548bff", [0.65, 0.22, 0.38], [-0.38, 1.75, 0]),
-    part(root, "#ff505d", [0.65, 0.22, 0.38], [0.38, 1.75, 0]),
-  ];
+  const lights = [],
+    glows = [];
+  for (const [index, color] of ["#548bff", "#ff505d"].entries()) {
+    const position = [(index ? 1 : -1) * 0.47, root.userData.height + 0.18, 0];
+    lights.push(part(root, color, [0.84, 0.3, 0.55], position));
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 64;
+    const context = canvas.getContext("2d");
+    const glow = context.createRadialGradient(32, 32, 0, 32, 32, 32);
+    glow.addColorStop(0, "#ffffff");
+    glow.addColorStop(0.2, "#ffffffaa");
+    glow.addColorStop(1, "#ffffff00");
+    context.fillStyle = glow;
+    context.fillRect(0, 0, 64, 64);
+    const sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: new THREE.CanvasTexture(canvas),
+        color,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        toneMapped: false,
+        opacity: 0.55,
+      }),
+    );
+    sprite.position.set(...position);
+    sprite.scale.setScalar(6);
+    sprite.userData.transient = true;
+    root.add(sprite);
+    glows.push(sprite);
+  }
   if (!pedestrian) {
     part(root, "#cad0df", [0.2, 1.8, 0.2], [0, 1.3, -1.5]);
     const boom = part(root, "#cad0df", [0.2, 0.2, 2.3], [0, 2.15, -2.4]);
@@ -152,7 +192,17 @@ export function createPolice(models, transfer, traveler) {
   label.position.y = 4;
   label.visible = true;
   root.add(label);
-  return { root, label, lights, pedestrian, traveler };
+  return { root, label, lights, glows, pedestrian, traveler };
+}
+
+export function updatePoliceLights(item, seconds, reducedMotion = false) {
+  item.lights?.forEach((light, index) => {
+    const pulse = reducedMotion
+      ? 0.7
+      : 0.5 + Math.sin(seconds * Math.PI * 2.5 + index * Math.PI) * 0.5;
+    light.material.emissiveIntensity = 0.7 + pulse * 3.5;
+    item.glows[index].material.opacity = 0.14 + pulse * 0.46;
+  });
 }
 
 export function disposeTraveler(item) {
@@ -172,8 +222,14 @@ export function refreshTravelerPace(item, previousTransfer) {
   if (["board", "police"].includes(item.phase)) return;
   const motion = movementSpeed(item.transfer);
   item.speed = motion.units;
-  if (!item.mixer || motion.animation === movementSpeed(previousTransfer).animation) return;
-  const clip = item.root.userData.clips?.find(c => c.name === motion.animation);
+  if (
+    !item.mixer ||
+    motion.animation === movementSpeed(previousTransfer).animation
+  )
+    return;
+  const clip = item.root.userData.clips?.find(
+    (c) => c.name === motion.animation,
+  );
   if (clip) {
     item.mixer.stopAllAction();
     item.mixer.clipAction(clip).play();

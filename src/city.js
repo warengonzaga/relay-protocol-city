@@ -4,13 +4,26 @@ import { loadModels } from "./models.js";
 import { buildEnvironment } from "./environment.js";
 import { createTraffic } from "./traffic.js";
 import { chainMark } from "./chain-marks.js";
+import {
+  GROUND,
+  configureDistricts,
+  getDistrictAt,
+  getDistrictBounds,
+} from "./world-map.js";
 
 export async function createCity(
   container,
   labelsContainer,
   onSelect,
   onError,
+  options = {},
 ) {
+  configureDistricts(options.transfers ?? []);
+  const bounds = getDistrictBounds();
+  const worldDiagonal = Math.hypot(
+    bounds.maxX - bounds.minX,
+    bounds.maxZ - bounds.minZ,
+  );
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
     alpha: false,
@@ -25,9 +38,16 @@ export async function createCity(
   container.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#161616");
-  const camera = new THREE.OrthographicCamera(-60, 60, 40, -40, 0.1, 600);
+  const camera = new THREE.OrthographicCamera(
+    -60,
+    60,
+    40,
+    -40,
+    0.1,
+    Math.max(600, worldDiagonal + 400),
+  );
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
+  controls.enableDamping = !options.reducedMotion;
   controls.dampingFactor = 0.075;
   controls.enablePan = false;
   controls.minPolarAngle = 0.3;
@@ -38,30 +58,51 @@ export async function createCity(
   controls.zoomSpeed = 0.65;
   scene.add(new THREE.HemisphereLight("#d9d6ff", "#222332", 2.3));
   const sunlight = new THREE.DirectionalLight("#e4dcff", 3.2);
-  sunlight.position.set(-60, 130, 60);
+  sunlight.target.position.set(
+    (bounds.minX + bounds.maxX) / 2,
+    0,
+    (bounds.minZ + bounds.maxZ) / 2,
+  );
+  sunlight.position
+    .set(-60, 130, 60)
+    .normalize()
+    .multiplyScalar(worldDiagonal / 2 + 100)
+    .add(sunlight.target.position);
   sunlight.castShadow = true;
   sunlight.shadow.mapSize.set(2048, 2048);
+  const shadowCamera = sunlight.shadow.camera;
+  shadowCamera.position.copy(sunlight.position);
+  shadowCamera.lookAt(sunlight.target.position);
+  shadowCamera.updateMatrixWorld();
+  // Fit in light space so a larger map stays covered without wasting shadow resolution.
+  const shadowBounds = new THREE.Box3(
+    new THREE.Vector3(bounds.minX, -5, bounds.minZ),
+    new THREE.Vector3(bounds.maxX, 55, bounds.maxZ),
+  ).applyMatrix4(shadowCamera.matrixWorldInverse);
   Object.assign(sunlight.shadow.camera, {
-    left: -150,
-    right: 150,
-    top: 110,
-    bottom: -110,
-    near: 1,
-    far: 300,
+    left: shadowBounds.min.x - 5,
+    right: shadowBounds.max.x + 5,
+    top: shadowBounds.max.y + 5,
+    bottom: shadowBounds.min.y - 5,
+    near: Math.max(1, -shadowBounds.max.z - 5),
+    far: -shadowBounds.min.z + 5,
   });
+  shadowCamera.updateProjectionMatrix();
   sunlight.shadow.normalBias = 0.035;
   sunlight.shadow.bias = -0.00015;
   sunlight.shadow.radius = 4;
-  scene.add(sunlight);
+  scene.add(sunlight, sunlight.target);
   const fill = new THREE.DirectionalLight("#dee9ff", 1.2);
   fill.position.set(40, 30, -40);
   scene.add(fill);
   const models = await loadModels();
   const environment = buildEnvironment(scene, models);
   const traffic = createTraffic(scene, models, environment, onSelect);
+  traffic.setReducedMotion(Boolean(options.reducedMotion));
   const labels = environment.labels.map(({ chain, position }) => {
     const element = document.createElement("div");
     element.className = "chain-label";
+    element.style.visibility = "hidden";
     const symbol = document.createElement("span");
     symbol.className = "chain-symbol";
     symbol.style.background = chain.color;
@@ -78,12 +119,28 @@ export async function createCity(
   let previous = 0;
   let disposed = false;
   let pointerDown;
+  let hoverPoint = null;
+  let visibleChainId = null;
   const projection = new THREE.Vector3();
+  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -GROUND);
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  const groundPoint = new THREE.Vector3();
   function resize() {
-    width = container.clientWidth;
-    height = container.clientHeight;
+    width = Math.max(1, container.clientWidth);
+    height = Math.max(1, container.clientHeight);
     const aspect = width / height;
-    const halfHeight = Math.max(64, 130 / aspect);
+    camera.updateMatrixWorld();
+    let halfWidth = 0,
+      halfHeight = 0;
+    for (const x of [bounds.minX, bounds.maxX])
+      for (const z of [bounds.minZ, bounds.maxZ])
+        for (const y of [GROUND, 22]) {
+          projection.set(x, y, z).applyMatrix4(camera.matrixWorldInverse);
+          halfWidth = Math.max(halfWidth, Math.abs(projection.x));
+          halfHeight = Math.max(halfHeight, Math.abs(projection.y));
+        }
+    halfHeight = Math.max(halfHeight + 12, (halfWidth + 12) / aspect);
     camera.left = -halfHeight * aspect;
     camera.right = halfHeight * aspect;
     camera.top = halfHeight;
@@ -92,11 +149,15 @@ export async function createCity(
     renderer.setSize(width, height, false);
   }
   function reset() {
-    camera.position.set(125, 160, 175);
-    controls.target.set(-4, 2.5, 0);
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+    camera.position.set(centerX + 125, 160, centerZ + 175);
+    controls.target.set(centerX, 2.5, centerZ);
     camera.zoom = 1;
-    camera.updateProjectionMatrix();
+    hoverPoint = null;
+    visibleChainId = null;
     controls.update();
+    resize();
   }
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(container);
@@ -111,6 +172,8 @@ export async function createCity(
       for (let remaining = dt; remaining > 0; remaining -= 0.05)
         traffic.update(Math.min(0.05, remaining));
       controls.update();
+      if (hoverPoint)
+        visibleChainId = districtAtPointer(hoverPoint)?.id ?? null;
       const sceneRect = container.getBoundingClientRect();
       const overlays = [
         ...container.parentElement.querySelectorAll(
@@ -120,6 +183,10 @@ export async function createCity(
         .filter((element) => !element.hidden)
         .map((element) => element.getBoundingClientRect());
       for (const label of labels) {
+        if (label.chainId !== visibleChainId) {
+          label.element.style.visibility = "hidden";
+          continue;
+        }
         projection.copy(label.position).project(camera);
         const x = (projection.x * 0.5 + 0.5) * width + sceneRect.left;
         const y = (-projection.y * 0.5 + 0.5) * height + sceneRect.top;
@@ -140,22 +207,75 @@ export async function createCity(
     }
     frame = requestAnimationFrame(render);
   }
+  function districtAtPointer(point) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.set(
+      ((point.x - rect.left) / rect.width) * 2 - 1,
+      -((point.y - rect.top) / rect.height) * 2 + 1,
+    );
+    if (Math.abs(pointer.x) > 1 || Math.abs(pointer.y) > 1) return null;
+    raycaster.setFromCamera(pointer, camera);
+    return raycaster.ray.intersectPlane(groundPlane, groundPoint)
+      ? getDistrictAt(groundPoint.x, groundPoint.z)
+      : null;
+  }
   const down = (event) => {
-    pointerDown = { x: event.clientX, y: event.clientY };
+    hoverPoint = null;
+    visibleChainId = null;
+    pointerDown =
+      event.isPrimary && event.button === 0
+        ? {
+            x: event.clientX,
+            y: event.clientY,
+            id: event.pointerId,
+            dragged: false,
+          }
+        : null;
+  };
+  const move = (event) => {
+    if (pointerDown) {
+      if (
+        Math.hypot(
+          event.clientX - pointerDown.x,
+          event.clientY - pointerDown.y,
+        ) >= 5
+      )
+        pointerDown.dragged = true;
+      return;
+    }
+    if (event.pointerType !== "touch" && !event.buttons)
+      hoverPoint = { x: event.clientX, y: event.clientY };
   };
   const up = (event) => {
     if (
       pointerDown &&
+      pointerDown.id === event.pointerId &&
+      !pointerDown.dragged &&
       Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y) <
         5
-    )
-      traffic.pick(
+    ) {
+      const picked = traffic.pick(
         event.clientX,
         event.clientY,
         renderer.domElement.getBoundingClientRect(),
         camera,
       );
+      if (!picked) {
+        const point = { x: event.clientX, y: event.clientY };
+        visibleChainId = districtAtPointer(point)?.id ?? null;
+        if (event.pointerType !== "touch") hoverPoint = point;
+      }
+    }
     pointerDown = null;
+  };
+  const cancel = () => {
+    pointerDown = null;
+    hoverPoint = null;
+    visibleChainId = null;
+  };
+  const leave = (event) => {
+    // Touch emits pointerleave after a completed tap; keep its one revealed label.
+    if (event.pointerType !== "touch") cancel();
   };
   const contextLost = (event) => {
     event.preventDefault();
@@ -164,7 +284,10 @@ export async function createCity(
     );
   };
   renderer.domElement.addEventListener("pointerdown", down);
+  renderer.domElement.addEventListener("pointermove", move);
   renderer.domElement.addEventListener("pointerup", up);
+  renderer.domElement.addEventListener("pointerleave", leave);
+  renderer.domElement.addEventListener("pointercancel", cancel);
   renderer.domElement.addEventListener("webglcontextlost", contextLost);
   frame = requestAnimationFrame(render);
   return {
@@ -181,6 +304,8 @@ export async function createCity(
     focusChain: (id) => {
       const label = environment.labels.find((l) => l.chain.id === Number(id));
       if (label) {
+        hoverPoint = null;
+        visibleChainId = label.chain.id;
         controls.target.copy(label.position).setY(1);
         camera.zoom = 1.65;
         camera.updateProjectionMatrix();
@@ -188,12 +313,14 @@ export async function createCity(
       }
     },
     setPaused: (value) => traffic.setPaused(value),
+    setReducedMotion: (value) => {
+      controls.enableDamping = !value;
+      traffic.setReducedMotion(value);
+    },
     setFilter: (value) => {
       traffic.setFilter(value);
-      labels.forEach((label) => {
-        label.element.style.opacity =
-          value === "all" || label.chainId === Number(value) ? "1" : ".45";
-      });
+      hoverPoint = null;
+      visibleChainId = value === "all" ? null : Number(value);
     },
     select: (id) => traffic.select(id),
     flyover: (transfer) => traffic.flyover(transfer),
@@ -209,7 +336,10 @@ export async function createCity(
       controls.dispose();
       traffic.dispose();
       renderer.domElement.removeEventListener("pointerdown", down);
+      renderer.domElement.removeEventListener("pointermove", move);
       renderer.domElement.removeEventListener("pointerup", up);
+      renderer.domElement.removeEventListener("pointerleave", leave);
+      renderer.domElement.removeEventListener("pointercancel", cancel);
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       scene.traverse((node) => {
         if (node.isMesh) {

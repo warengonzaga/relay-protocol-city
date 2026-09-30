@@ -52,4 +52,10 @@ Source inspection covers the palette, typography, models, controls, journey sema
 
 Browser captures and review artifacts are retained locally and excluded from Git. Desktop at 1280 × 720 and mobile at 390 × 844 were inspected, including expanded activity, the train queue, and a pending-trip inspector. The bounded independent finish review approved the interface after the flyover availability fix.
 
-Automated checks passed 37 tests and the production build. These checks and captured states do not constitute an exhaustive animation, device, or accessibility matrix. Authenticated v3 sample access is verified; network-wide pending visibility remains unverified. See `VERIFICATION.md` for scope and remaining limits.
+The current automated suite and both production builds pass; the exact result is recorded in VERIFICATION.md. These checks and captured states do not constitute an exhaustive animation, device, or accessibility matrix. Authenticated v3 sample access is verified; network-wide pending visibility remains unverified. See `VERIFICATION.md` for scope and remaining limits.
+
+## Current feedback revision
+
+The miniature identity is preserved. Districts are bordered territories containing street loops, not separate land pads. Sizes use a bounded, globally comparable square-root transform of the first sample and freeze until reload. Names appear on territory hover/tap/filter focus. Border inspection bays hold pending travelers while confirmed traffic crosses without a timed toll wait. Routes, addresses and scene geometry share the same coordinates. Flights have varied deterministic entries and fixed destination bearings, with an in-flight direction caption. Gantries and station platforms use the canonical railway centerline. Police lights draw attention during boarding and escort and respect pause/reduced motion.
+
+District outlines are irregular map territories with varied proportions and planted edges. A shared highway and sidewalks occupy neutral space between districts. Crosschain ground routes leave only their origin district, use the common network, then enter only their destination; same-chain journeys stay on local streets. The size is an illustrative bounded mapping of sampled activity, not an exact geographic area or network market share.

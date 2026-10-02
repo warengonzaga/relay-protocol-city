@@ -1,4 +1,4 @@
-# Home: Relay City
+# Home: Relay World
 
 Primary target: `index.html` (`/`). Related targets: `src/main.js`, `src/style.css`, `src/journey-ui.css`, `src/responsive.css`, `src/city.js`, `src/environment.js`, `src/district-layout.js`, `src/world-map.js`, `src/routes.js`, `src/travelers.js`, and `src/traffic.js`.
 

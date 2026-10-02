@@ -1,5 +1,5 @@
 {
-  "name": "relay-city",
+  "name": "relay-world",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -25,6 +25,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/warengonzaga/relay-protocol-city.git"
+    "url": "https://github.com/warengonzaga/relay-world.git"
   }
 }

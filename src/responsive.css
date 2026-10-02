@@ -75,6 +75,12 @@
   }
   .brand {
     font-size: 24px;
+    gap: 8px;
+  }
+  .brand-city {
+    font-size: 16px;
+    max-width: 4.5em;
+    margin-left: 0;
   }
   .brand-mark {
     transform: scale(0.85) skewY(-9deg);

@@ -1,4 +1,4 @@
-# Relay City
+# Relay World
 
 <!-- impeccable:product-schema 1 -->
 
@@ -30,7 +30,7 @@ Only successful train-sized requests animate. Airplanes appear only in city over
 
 ## Brand Commitments
 
-Name: Relay City. Keep the user's colorful toy-like modeled city, now in a nighttime environment with Relay's official dark design-system colors, Inter typography, and white Relay wordmark. Models remain legible against the dark backdrop.
+Name: Relay World. Keep the user's colorful toy-like modeled city, now in a nighttime environment with Relay's official dark design-system colors, Inter typography, and white Relay wordmark. Models remain legible against the dark backdrop.
 
 ## Evidence on Hand
 

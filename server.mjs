@@ -326,7 +326,7 @@ if (
     throw new Error("PORT must be between 1 and 65535");
   createServer().listen(port, process.env.HOST ?? "127.0.0.1", () => {
     console.log(
-      `Relay City server: http://${process.env.HOST ?? "127.0.0.1"}:${port}`,
+      `Relay World server: http://${process.env.HOST ?? "127.0.0.1"}:${port}`,
     );
   });
 }

@@ -1,4 +1,4 @@
-# Relay City asset credits
+# Relay World asset credits
 
 Downloaded and license-checked on September 30, 2026. Models are bundled locally so the city does not depend on a third-party asset host at runtime. Only selected GLBs, their required textures, and their license notices are included.
 
@@ -24,7 +24,7 @@ These two models have a different license from the Kenney models. Preserve these
 - **[Airplane](https://poly.pizza/m/8ciDd9k8wha) by Poly by Google**, licensed under [Creative Commons Attribution 3.0 Unported](https://creativecommons.org/licenses/by/3.0/). Original GLB unmodified. 1,292 triangles.
 - **[Bus](https://poly.pizza/m/4CPpvEmrMoF) by Poly by Google**, licensed under [Creative Commons Attribution 3.0 Unported](https://creativecommons.org/licenses/by/3.0/). Original GLB unmodified. 2,226 triangles.
 
-Application use may scale, animate, tint, or decorate the models with chain-route labels. Those runtime changes are by the Relay City contributors. No endorsement by the original creators is implied. A plain-text copy of this attribution is in `public/models/poly-google/ATTRIBUTION.txt`.
+Application use may scale, animate, tint, or decorate the models with chain-route labels. Those runtime changes are by the Relay World contributors. No endorsement by the original creators is implied. A plain-text copy of this attribution is in `public/models/poly-google/ATTRIBUTION.txt`.
 
 ## Model integration
 

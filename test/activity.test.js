@@ -579,15 +579,15 @@ test("tracked IDs reject malformed input and enforce the twelve-request bound be
 });
 
 test("static serving prevents traversal and symlink escapes and rejects writes", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "relay-city-test-"));
+  const root = await mkdtemp(join(tmpdir(), "relay-world-test-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const dist = join(root, "dist");
   await mkdir(dist);
-  await writeFile(join(dist, "index.html"), "<h1>Relay City</h1>");
+  await writeFile(join(dist, "index.html"), "<h1>Relay World</h1>");
   await writeFile(join(root, "secret.txt"), "private");
   await symlink(join(root, "secret.txt"), join(dist, "escape.txt"));
   const base = await serve(t, { env: {}, distDir: dist });
-  assert.equal(await (await fetch(base)).text(), "<h1>Relay City</h1>");
+  assert.equal(await (await fetch(base)).text(), "<h1>Relay World</h1>");
   for (const path of ["/..%2fsecret.txt", "/escape.txt", "/api/missing"]) {
     assert.equal((await fetch(base + path)).status, 404);
   }

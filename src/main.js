@@ -525,7 +525,7 @@ function focusDistrict(id) {
   $("chain-filter").value = filter;
   $("city-app").classList.toggle("district-focused", focused);
   $("back-to-city").hidden = !focused;
-  $("city-title").textContent = focused ? getChain(filter).name : "Relay City";
+  $("city-title").textContent = focused ? getChain(filter).name : "Relay World";
   $("district-description").textContent = focused
     ? Number(filter) === 1
       ? "Our first hand-designed neighborhood."
@@ -623,7 +623,7 @@ try {
   focusDistrict(1);
   $("loading-scene").hidden = true;
 } catch (error) {
-  console.error("Relay City:", error);
+  console.error("Relay World:", error);
   $("loading-scene").hidden = true;
   $("scene-error").hidden = false;
   if (!/WebGL/i.test(error.message))

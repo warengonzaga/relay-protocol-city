@@ -1,4 +1,4 @@
-name: Deploy city to GitHub Pages
+name: Deploy world to GitHub Pages
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
         run: npm ci --include=dev
       - name: Test
         run: npm test
-      - name: Build city
+      - name: Build world
         run: npm run build:pages -- --base="/${GITHUB_REPOSITORY#*/}/"
         env:
           # Public activity endpoint, never the Relay API key.

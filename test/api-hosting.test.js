@@ -32,7 +32,7 @@ test("CORS configuration accepts exact origins and rejects unsafe or ambiguous e
     "https://*.github.io",
     "https://user:pass@example.com",
     `${pagesOrigin}/`,
-    `${pagesOrigin}/relay-protocol-city`,
+    `${pagesOrigin}/relay-world`,
     `${pagesOrigin}?q=1`,
     `${pagesOrigin}#fragment`,
     "ftp://example.com",

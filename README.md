@@ -1,4 +1,4 @@
-# Relay City
+# Relay World
 
 A miniature crosschain city built with Three.js and real licensed 3D models. Chains are districts; Relay app transfers travel between homes, while reported integrators travel between their app buildings. The interface follows Relay's official dark design-system colors, Inter, and white wordmark.
 
@@ -51,7 +51,7 @@ npm run build
 npm start
 ```
 
-The combined local production server serves `dist/` and `/api/activity` on port 4174. `npm run dev` continues to use Vite's same-origin API proxy. For the split deployment below, `npm run build:pages` builds the frontend for `/relay-protocol-city/`, and the Dockerfile runs only the API. No database is needed.
+The combined local production server serves `dist/` and `/api/activity` on port 4174. `npm run dev` continues to use Vite's same-origin API proxy. For the split deployment below, `npm run build:pages` builds the frontend for `/relay-world/`, and the Dockerfile runs only the API. No database is needed.
 
 Tests cover normalization, attribution, stage evidence, bounded tracking, safe serving, all district routes, sidewalks, lanes, train queues, red lights, pending and completion holds, late failures, police cleanup, and same-ID speed updates. The verification scope is recorded in [VERIFICATION.md](VERIFICATION.md).
 
@@ -95,7 +95,7 @@ VITE_API_URL=https://your-service.up.railway.app/api/activity
 
 Use the complete public activity URL, including `/api/activity`. This URL is intentionally visible in the browser. **Do not add the Relay API key as a `VITE_` variable or pass it to the Pages build.** The workflow does not need a Relay GitHub Secret.
 
-Push to `main` or manually run **Deploy city to GitHub Pages**. The [Pages workflow](.github/workflows/pages.yml) runs the tests, builds for the repository subpath, uploads only `dist/`, and deploys it. The site address is `https://waren.build/relay-protocol-city/`. See GitHub's [custom Pages workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+Push to `main` or manually run **Deploy world to GitHub Pages**. The [Pages workflow](.github/workflows/pages.yml) runs the tests, builds for the repository subpath, uploads only `dist/`, and deploys it. The site address is `https://waren.build/relay-world/`. See GitHub's [custom Pages workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
 If `VITE_API_URL` is not configured, the Pages build runs a clearly labeled demo without API polling. Once the Railway URL exists, set the variable and rerun the workflow. Changing a GitHub variable requires a new frontend build; changing the private key in Railway does not.
 
@@ -106,8 +106,8 @@ npm run build:pages
 npm run preview:pages -- --host 127.0.0.1
 ```
 
-Open the printed `/relay-protocol-city/` preview address. To test against a deployed API, set the public `VITE_API_URL` while building and add the preview origin to Railway's `ALLOWED_ORIGINS` temporarily.
+Open the printed `/relay-world/` preview address. To test against a deployed API, set the public `VITE_API_URL` while building and add the preview origin to Railway's `ALLOWED_ORIGINS` temporarily.
 
 ## Contributing and licenses
 
-Copyright (c) 2026 Relay City contributors. Application source is licensed under the [GNU General Public License version 3](LICENSE) (`GPL-3.0-only`). Models, fonts, and Relay branding have separate terms; see [ASSETS.md](ASSETS.md). Keep all notices, truthful data labels, accessibility, and reduced-motion behavior. Use small focused changes and run the tests/build. Source repository: [warengonzaga/relay-protocol-city](https://github.com/warengonzaga/relay-protocol-city).
+Copyright (c) 2026 Relay World contributors. Application source is licensed under the [GNU General Public License version 3](LICENSE) (`GPL-3.0-only`). Models, fonts, and Relay branding have separate terms; see [ASSETS.md](ASSETS.md). Keep all notices, truthful data labels, accessibility, and reduced-motion behavior. Use small focused changes and run the tests/build. Source repository: [warengonzaga/relay-world](https://github.com/warengonzaga/relay-world).

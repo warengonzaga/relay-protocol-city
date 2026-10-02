@@ -1,5 +1,5 @@
 ---
-name: Relay City
+name: Relay World
 description: A colorful miniature transfer city framed by Relay's dark interface.
 colors:
   canvas: "#161616"
@@ -132,7 +132,7 @@ components:
     padding: "12px 15px"
 ---
 
-# Design System: Relay City
+# Design System: Relay World
 
 ## Overview
 
@@ -180,7 +180,7 @@ Brand references: [Relay Kit base styles](https://github.com/relayprotocol/relay
 
 ## Typography
 
-Inter is self-hosted as a variable TTF covering weights 100–900, with `font-display: swap`, sans-serif fallback, and font synthesis disabled. The header uses the official Relay wordmark asset with a separate Inter “City” label.
+Inter is self-hosted as a variable TTF covering weights 100–900, with `font-display: swap`, sans-serif fallback, and font synthesis disabled. The header uses the official Relay wordmark asset with a separate Inter “World” label at 22px, reduced to 16px on narrow screens. The overview heading is limited to 12ch to leave room for the scene controls.
 
 - **Display:** the city or focused district title, with responsive size overrides.
 - **Title:** the guide heading. Trip amounts use a larger (27px) heading with tighter tracking.

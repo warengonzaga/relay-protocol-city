@@ -142,6 +142,9 @@ a .icon {
   line-height: 1;
 }
 .brand-city {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
   font-weight: 400;
   margin-left: 3px;
 }
@@ -322,6 +325,7 @@ a .icon {
   z-index: 2;
 }
 .intro h1 {
+  max-width: 12ch;
   font-size: clamp(28px, 3.05vw, 46px);
   line-height: 1.1;
   letter-spacing: -0.035em;

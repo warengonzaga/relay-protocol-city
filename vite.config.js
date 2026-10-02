@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
     }
   }
   return {
-    base: mode === "pages" ? "/relay-protocol-city/" : "/",
+    base: mode === "pages" ? "/relay-world/" : "/",
     server: {
       host: "127.0.0.1",
       port: 5173,
